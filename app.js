@@ -1,299 +1,538 @@
-const PLAN = {
-  A:[
-    ["Leg Press","3x10",20],
-    ["Chest Press","3x10",30],
-    ["Leg Extension","3x12",25],
-    ["Pec Deck","2x12",35],
-    ["Calf Raise","3x15",25],
-    ["Adductor","2x15",37]
-  ],
+const QUOTES = [
+  "Show up. Lift. Repeat. 💪",
+  "Progressive overload is the game. 🔥",
+  "Every rep counts. Every session matters. ⚡",
+  "Consistency beats intensity. Stay the course. 🏆",
+  "You lift, you grow. Simple as that. 💥"
+];
 
-  B:[
-    ["Lat Pulldown","3x10",39],
-    ["Seated Row","3x10",30],
-    ["Leg Curl","3x12",28],
-    ["Rear Delt","3x12",25],
-    ["Tricep Pushdown","2x12",30],
-    ["Bicep Curl","2x12",0]
+document.getElementById("quote").textContent =
+  QUOTES[Math.floor(Math.random() * QUOTES.length)];
+
+const PLAN = {
+  A: [
+    ["Leg Press",      "3x10",  "20kg"],
+    ["Chest Press",    "3x10",  "30kg"],
+    ["Leg Extension",  "3x12",  "25kg"],
+    ["Pec Deck",       "2x12",  "35kg"],
+    ["Calf Raise",     "3x15",  "25kg"],
+    ["Adductor",       "2x15",  "37kg"]
+  ],
+  B: [
+    ["Lat Pulldown",     "3x10", "39kg"],
+    ["Seated Row",       "3x10", "30kg"],
+    ["Leg Curl",         "3x12", "28kg"],
+    ["Rear Delt",        "3x12", "25kg"],
+    ["Tricep Pushdown",  "2x12", "30kg"],
+    ["Bicep Curl",       "2x12", "0kg"]
   ]
 };
 
 const SWAPS = {
-  "Chest Press":["Incline Press","Machine Press","DB Press"],
-  "Lat Pulldown":["Pull Ups","Close Grip Pulldown"],
-  "Leg Press":["Hack Squat","Smith Squat"]
+  "Chest Press":    ["Incline Press", "Machine Press", "DB Press"],
+  "Lat Pulldown":   ["Pull Ups", "Close Grip Pulldown"],
+  "Leg Press":      ["Hack Squat", "Smith Squat"],
+  "Seated Row":     ["Cable Row", "DB Row"],
+  "Tricep Pushdown":["Overhead Tricep", "Skull Crushers"],
+  "Bicep Curl":     ["Hammer Curl", "Incline DB Curl"]
 };
 
+const RATINGS = [
+  { key: "easy", emoji: "😅", label: "Too easy",   delta: +2.5 },
+  { key: "good", emoji: "💪", label: "Just right", delta:  0   },
+  { key: "hard", emoji: "😤", label: "Too hard",   delta: -2.5 }
+];
+
 let currentDay = "A";
-
-const STORAGE = "iron_log_v2";
-
+const STORAGE  = "iron_log_v3";
 let data = JSON.parse(localStorage.getItem(STORAGE) || "{}");
+if (!data.history)    data.history    = [];
+if (!data.bodyweight) data.bodyweight = [];
 
-if(!data.history) data.history=[];
+let sessionRatings = {};
+let sessionDone    = {};
+let sessionSets    = {}; // { exName: setsCompleted }
 
-function save(){
-  localStorage.setItem(STORAGE,JSON.stringify(data));
+function save() {
+  localStorage.setItem(STORAGE, JSON.stringify(data));
 }
 
-function renderWorkout(){
+/* ── Smart suggestion ── */
 
+function getLastEntry(exName) {
+  for (let i = data.history.length - 1; i >= 0; i--) {
+    const match = data.history[i].exercises.find(e => e.name === exName);
+    if (match) return match;
+  }
+  return null;
+}
+
+function getPersonalBest(exName) {
+  let pb = 0;
+  data.history.forEach(s => s.exercises.forEach(ex => {
+    if (ex.name === exName) {
+      const w = parseFloat(ex.weight);
+      if (!isNaN(w) && w > pb) pb = w;
+    }
+  }));
+  return pb;
+}
+
+function getSuggestion(exName, fallback) {
+  const last = getLastEntry(exName);
+  if (!last) return { text: `First time — try ${fallback}`, suggested: null, lastNote: null };
+
+  const w        = parseFloat(last.weight);
+  const r        = RATINGS.find(r => r.key === last.rating);
+  const delta    = r ? r.delta : 0;
+  const lastNote = last.note && last.note.trim() ? last.note.trim() : null;
+
+  if (isNaN(w)) return { text: `No weight logged last time`, suggested: null, lastNote };
+
+  const next   = Math.max(0, w + delta);
+  const rLabel = r ? `${r.emoji} ${r.label}` : "no rating";
+  const arrow  = delta > 0 ? "↑" : delta < 0 ? "↓" : "→";
+  return {
+    text:      `Last: ${w} kg (${rLabel}) ${arrow} Try ${next} kg`,
+    suggested: next,
+    lastNote
+  };
+}
+
+function calcVolume(setsStr, weight) {
+  // parse sets from e.g. "3x10" → 3 sets × 10 reps × weight
+  const match = setsStr.match(/(\d+)x(\d+)/);
+  if (!match || isNaN(weight) || weight <= 0) return null;
+  const sets = parseInt(match[1]);
+  const reps = parseInt(match[2]);
+  return (sets * reps * weight).toFixed(0);
+}
+
+/* ── Workout form ── */
+
+function renderWorkout() {
+  sessionRatings = {};
+  sessionDone    = {};
+  sessionSets    = {};
   const wrap = document.getElementById("workout");
-
   wrap.innerHTML = "";
 
-  PLAN[currentDay].forEach((ex,i)=>{
+  const card = document.createElement("div");
+  card.className = "card";
 
-    const div = document.createElement("div");
+  const rows = PLAN[currentDay].map((ex, i) => {
+    const name       = ex[0];
+    const setsStr    = ex[1];
+    const suggestion = getSuggestion(name, ex[2]);
+    const prefill    = suggestion.suggested !== null ? suggestion.suggested : "";
+    const pb         = getPersonalBest(name);
+    const totalSets  = parseInt(setsStr.match(/(\d+)x/)?.[1] || 3);
+    const hasSwap    = !!SWAPS[name];
 
-    div.className = "exercise";
+    const ratingBtns = RATINGS.map(r => `
+      <button type="button" class="ratingBtn" id="rating_${i}_${r.key}"
+        onclick="setRating(${i},'${r.key}','${name}')" title="${r.label}">
+        ${r.emoji}
+      </button>`).join("");
 
-    div.innerHTML = `
-      <div class="exerciseTop">
-        <div>
-          <h3>${ex[0]}</h3>
-          <div class="meta">
-            ${ex[1]} · Last: ${ex[2]}kg
+    const noteReminder = suggestion.lastNote
+      ? `<div class="noteReminder">📌 Last note: ${suggestion.lastNote}</div>`
+      : "";
+
+    const setDots = Array.from({length: totalSets}, (_, s) =>
+      `<button type="button" class="setDot" id="setDot_${i}_${s}"
+        onclick="tickSet(${i},${s},'${name}',${totalSets})"></button>`
+    ).join("");
+
+    return `
+      <div class="exercise" id="exCard_${i}">
+        <div class="exHeader">
+          <div class="exTitleRow">
+            <h3>${name}</h3>
+            ${hasSwap ? `<button type="button" class="swapTrigger" onclick="openSwap('${name}')">⇄ Swap</button>` : ""}
           </div>
+          <label class="doneLabel">
+            <input type="checkbox" class="doneCheck" id="done_${i}"
+              onchange="setDone(${i},'${name}')">
+            <span class="doneTick"></span>
+            Done
+          </label>
         </div>
-      </div>
+        <div class="meta">${setsStr}</div>
+        <div class="suggestion">${suggestion.text}</div>
+        ${pb > 0 ? `<div class="pbBadge" id="pb_${i}">🏆 PB: ${pb} kg</div>` : `<div id="pb_${i}"></div>`}
+        ${noteReminder}
+        <input id="weight_${i}" placeholder="Weight used (kg)" inputmode="decimal" value="${prefill}"
+          oninput="checkPB(${i},'${name}'); updateVolume(${i},'${setsStr}')">
+        <div class="volumeRow" id="vol_${i}"></div>
+        <div class="setsRow">
+          <span class="setsLabel">Sets done:</span>
+          <div class="setDots" id="setDots_${i}">${setDots}</div>
+          <span class="setsCount" id="setsCount_${i}">0/${totalSets}</span>
+        </div>
+        <div class="ratingRow">
+          <span class="ratingLabel">How did it feel?</span>
+          <div class="ratingBtns">${ratingBtns}</div>
+        </div>
+        <textarea id="note_${i}" placeholder="Notes"></textarea>
+      </div>`;
+  }).join("");
 
-      <input
-        id="weight_${i}"
-        type="number"
-        placeholder="Weight used">
+  card.innerHTML = `
+    ${rows}
+    <button class="actionBtn" onclick="logSession()">Log Day ${currentDay} Session 🔥</button>
+    <div id="logStatus" class="logStatus"></div>`;
 
-      <textarea
-        id="note_${i}"
-        placeholder="Notes"></textarea>
+  wrap.appendChild(card);
+}
 
-      <button
-        class="actionBtn"
-        onclick="completeExercise(${i})">
-        Complete
-      </button>
+function tickSet(i, s, exName, totalSets) {
+  const dot = document.getElementById(`setDot_${i}_${s}`);
+  dot.classList.toggle("setDone");
+  const done = document.querySelectorAll(`#setDots_${i} .setDot.setDone`).length;
+  sessionSets[exName] = done;
+  document.getElementById(`setsCount_${i}`).textContent = `${done}/${totalSets}`;
+  if (done === totalSets) startTimer(90);
+}
 
-      <button
-        class="actionBtn swapBtn"
-        onclick="swapExercise('${ex[0]}')">
-        Swap Exercise
-      </button>
-    `;
+function updateVolume(i, setsStr) {
+  const w   = parseFloat(document.getElementById(`weight_${i}`).value);
+  const vol = calcVolume(setsStr, w);
+  const el  = document.getElementById(`vol_${i}`);
+  el.textContent = vol ? `Total volume: ${vol} kg` : "";
+}
 
-    wrap.appendChild(div);
+function setDone(i, exName) {
+  const checked = document.getElementById(`done_${i}`).checked;
+  sessionDone[exName] = checked;
+  document.getElementById(`exCard_${i}`).classList.toggle("exDone", checked);
+  if (checked) startTimer(90);
+}
+
+function setRating(i, key, exName) {
+  sessionRatings[exName] = key;
+  RATINGS.forEach(r => {
+    const btn = document.getElementById(`rating_${i}_${r.key}`);
+    if (btn) btn.classList.toggle("ratingActive", r.key === key);
   });
 }
 
-function completeExercise(i){
+function checkPB(i, exName) {
+  const val = parseFloat(document.getElementById(`weight_${i}`).value);
+  const pb  = getPersonalBest(exName);
+  const el  = document.getElementById(`pb_${i}`);
+  if (!el) return;
+  if (!isNaN(val) && val > pb) {
+    el.innerHTML = `🏆 New PB incoming! ${val} kg`;
+    el.className = "pbBadge pbNew";
+  } else if (pb > 0) {
+    el.innerHTML = `🏆 PB: ${pb} kg`;
+    el.className = "pbBadge";
+  } else {
+    el.innerHTML = "";
+  }
+}
 
-  const ex = PLAN[currentDay][i];
+function logSession() {
+  const exercises = PLAN[currentDay].map((ex, i) => {
+    const w = document.getElementById(`weight_${i}`).value.trim();
+    return {
+      name:   ex[0],
+      weight: w,
+      note:   document.getElementById(`note_${i}`).value.trim(),
+      rating: sessionRatings[ex[0]] || null,
+      done:   !!sessionDone[ex[0]],
+      sets:   sessionSets[ex[0]] || 0,
+      volume: calcVolume(ex[1], parseFloat(w))
+    };
+  });
 
-  const weight =
-    Number(document.getElementById(`weight_${i}`).value);
-
-  const note =
-    document.getElementById(`note_${i}`).value;
+  const bwVal = document.getElementById("bwInput").value.trim();
+  if (bwVal) {
+    data.bodyweight.push({ date: new Date().toLocaleDateString(), weight: parseFloat(bwVal) });
+    document.getElementById("bwInput").value = "";
+  }
 
   data.history.push({
-    exercise:ex[0],
-    weight,
-    note,
-    date:new Date().toLocaleString()
+    id:        Date.now(),
+    day:       currentDay,
+    date:      new Date().toLocaleString(),
+    exercises: exercises
   });
 
   save();
-
   renderHistory();
   renderChart();
+  renderBWChart();
+  sessionRatings = {};
+  sessionDone    = {};
+  sessionSets    = {};
 
-  autoSuggest(ex[0]);
+  const status = document.getElementById("logStatus");
+  status.textContent = "Session logged 🔥 Keep pushing!";
+  setTimeout(() => { status.textContent = ""; renderWorkout(); }, 2500);
 }
 
-function renderHistory(){
+/* ── Day toggle ── */
 
-  const h = document.getElementById("history");
-
-  h.innerHTML = "";
-
-  data.history
-    .slice()
-    .reverse()
-    .forEach(e=>{
-
-      const div = document.createElement("div");
-
-      div.className = "historyItem";
-
-      div.innerHTML = `
-        <strong>${e.exercise}</strong>
-        <div class="small">
-          ${e.weight}kg · ${e.date}
-        </div>
-        <div class="small">
-          ${e.note || ""}
-        </div>
-      `;
-
-      h.appendChild(div);
-    });
-}
-
-function autoSuggest(exercise){
-
-  const logs =
-    data.history.filter(x=>x.exercise===exercise);
-
-  if(logs.length < 2) return;
-
-  const last = logs[logs.length-1];
-  const prev = logs[logs.length-2];
-
-  if(last.weight >= prev.weight){
-
-    setTimeout(()=>{
-
-      alert(
-        `Progression suggestion:\nIncrease ${exercise} next session`
-      );
-
-    },300);
-  }
-}
-
-function swapExercise(ex){
-
-  const swaps = SWAPS[ex];
-
-  if(!swaps){
-    alert("No swaps available");
-    return;
-  }
-
-  alert(
-    `${ex} alternatives:\n\n${swaps.join("\n")}`
-  );
-}
-
-document.getElementById("dayABtn").onclick = ()=>{
-
+document.getElementById("dayABtn").addEventListener("click", () => {
   currentDay = "A";
-
-  document
-    .getElementById("dayABtn")
-    .classList.add("active");
-
-  document
-    .getElementById("dayBBtn")
-    .classList.remove("active");
-
+  document.getElementById("dayABtn").classList.add("active");
+  document.getElementById("dayBBtn").classList.remove("active");
   renderWorkout();
-};
-
-document.getElementById("dayBBtn").onclick = ()=>{
-
+});
+document.getElementById("dayBBtn").addEventListener("click", () => {
   currentDay = "B";
-
-  document
-    .getElementById("dayBBtn")
-    .classList.add("active");
-
-  document
-    .getElementById("dayABtn")
-    .classList.remove("active");
-
+  document.getElementById("dayBBtn").classList.add("active");
+  document.getElementById("dayABtn").classList.remove("active");
   renderWorkout();
-};
+});
+
+/* ── Swap sheet ── */
+
+function openSwap(exName) {
+  const swaps = SWAPS[exName] || [];
+  document.getElementById("sheetTitle").textContent = `${exName} alternatives`;
+  document.getElementById("sheetOptions").innerHTML = swaps
+    .map(s => `<div class="sheetOption">${s}</div>`).join("");
+  document.getElementById("swapSheet").classList.add("open");
+  document.getElementById("sheetOverlay").classList.add("open");
+}
+
+function closeSwap() {
+  document.getElementById("swapSheet").classList.remove("open");
+  document.getElementById("sheetOverlay").classList.remove("open");
+}
+
+/* ── Rest timer ── */
 
 let timer;
 
-function startTimer(seconds){
-
+function startTimer(seconds) {
   clearInterval(timer);
-
   let remaining = seconds;
-
   updateTimer(remaining);
-
-  timer = setInterval(()=>{
-
+  const wrap = document.getElementById("timerWrap");
+  wrap.classList.add("timerRunning");
+  timer = setInterval(() => {
     remaining--;
-
     updateTimer(remaining);
-
-    if(remaining <= 0){
-
+    if (remaining <= 0) {
       clearInterval(timer);
-
-      if(navigator.vibrate){
-        navigator.vibrate([200,100,200]);
-      }
-
-      alert("Rest complete");
+      wrap.classList.remove("timerRunning");
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      alert("Rest complete 💪");
     }
-
-  },1000);
+  }, 1000);
 }
 
-function updateTimer(sec){
-
-  const m =
-    String(Math.floor(sec/60)).padStart(2,"0");
-
-  const s =
-    String(sec%60).padStart(2,"0");
-
-  document.getElementById("timerDisplay")
-    .textContent = `${m}:${s}`;
+function updateTimer(sec) {
+  const m = String(Math.floor(sec / 60)).padStart(2, "0");
+  const s = String(sec % 60).padStart(2, "0");
+  document.getElementById("timerDisplay").textContent = `${m}:${s}`;
 }
+
+/* ── History ── */
+
+function renderHistory() {
+  const h = document.getElementById("history");
+  h.innerHTML = "";
+
+  if (!data.history.length) {
+    h.innerHTML = `<div class="historyItem"><div class="small">No sessions logged yet.</div></div>`;
+    return;
+  }
+
+  data.history.slice().reverse().forEach((session, revIdx) => {
+    const realIdx = data.history.length - 1 - revIdx;
+    const div = document.createElement("div");
+    div.className = "historyItem";
+
+    const exRows = session.exercises.map(ex => {
+      const r    = ex.rating ? RATINGS.find(x => x.key === ex.rating) : null;
+      const tick = ex.done ? `<span class="doneBadge">✓</span>` : "";
+      const vol  = ex.volume ? `<span class="volTag">${ex.volume} kg vol</span>` : "";
+      return `
+        <div class="historyExRow">
+          <span class="historyExName">${tick}${ex.name}</span>
+          <span class="historyExWeight">${ex.weight ? ex.weight + " kg" : "—"}</span>
+          ${r ? `<span class="historyRating">${r.emoji} ${r.label}</span>` : ""}
+          ${vol}
+          ${ex.note ? `<div class="small historyNote">${ex.note}</div>` : ""}
+        </div>`;
+    }).join("");
+
+    const doneCount = session.exercises.filter(e => e.done).length;
+    const total     = session.exercises.length;
+
+    div.innerHTML = `
+      <div class="historyTop">
+        <div>
+          <strong>Day ${session.day}</strong>
+          <div class="small">${session.date}</div>
+        </div>
+        <button class="delBtn" onclick="deleteSession(${realIdx})">Delete</button>
+      </div>
+      <div class="doneBar">
+        <div class="doneBarFill" style="width:${total ? (doneCount/total*100) : 0}%"></div>
+      </div>
+      <div class="small" style="margin-bottom:6px">${doneCount}/${total} exercises completed</div>
+      <details class="sessionDetails">
+        <summary>View exercises (${total})</summary>
+        <div class="exList">${exRows}</div>
+      </details>`;
+    h.appendChild(div);
+  });
+}
+
+function deleteSession(idx) {
+  if (!confirm("Delete this session?")) return;
+  data.history.splice(idx, 1);
+  save();
+  renderHistory();
+  renderChart();
+}
+
+/* ── Export / Import ── */
+
+function exportBackup() {
+  if (!data.history.length) { alert("No history to export yet 💪"); return; }
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = `iron-log-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importBackup() {
+  const input  = document.createElement("input");
+  input.type   = "file";
+  input.accept = ".json,application/json";
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if (!parsed.history || !Array.isArray(parsed.history)) { alert("Invalid backup file"); return; }
+        if (!confirm(`Import ${parsed.history.length} session(s)? This will REPLACE your current history.`)) return;
+        data = { history: parsed.history, bodyweight: parsed.bodyweight || [] };
+        save();
+        renderHistory();
+        renderChart();
+        renderBWChart();
+        renderWorkout();
+        alert("Backup restored 🔥");
+      } catch { alert("Could not read file."); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+/* ── Progress chart ── */
 
 let chart;
+const select = document.getElementById("exerciseSelect");
+select.addEventListener("change", () => renderChart(select.value));
 
-function renderChart(){
+function renderChart(forcedName) {
+  const allNames = [];
+  data.history.forEach(s => s.exercises.forEach(ex => {
+    if (!allNames.includes(ex.name)) allNames.push(ex.name);
+  }));
 
-  const select =
-    document.getElementById("exerciseSelect");
+  if (!allNames.length) {
+    select.innerHTML = `<option value="">No data yet</option>`;
+    if (chart) { chart.destroy(); chart = null; }
+    return;
+  }
 
-  const exercises =
-    [...new Set(data.history.map(x=>x.exercise))];
+  const selected = (forcedName && allNames.includes(forcedName))
+    ? forcedName
+    : (allNames.includes(select.value) ? select.value : allNames[0]);
 
-  select.innerHTML = exercises
-    .map(e=>`<option>${e}</option>`)
+  select.innerHTML = allNames
+    .map(n => `<option value="${n}"${n === selected ? " selected" : ""}>${n}</option>`)
     .join("");
 
-  if(!exercises.length) return;
-
-  const selected =
-    select.value || exercises[0];
-
-  const logs =
-    data.history.filter(x=>x.exercise===selected);
-
-  const ctx =
-    document.getElementById("progressChart");
-
-  if(chart) chart.destroy();
-
-  chart = new Chart(ctx,{
-
-    type:"line",
-
-    data:{
-      labels:logs.map((_,i)=>`#${i+1}`),
-
-      datasets:[{
-        label:selected,
-        data:logs.map(x=>x.weight)
-      }]
+  const points = [];
+  data.history.forEach((session, i) => {
+    const match = session.exercises.find(ex => ex.name === selected);
+    if (match) {
+      const w = parseFloat(match.weight);
+      const r = match.rating ? RATINGS.find(x => x.key === match.rating) : null;
+      points.push({
+        label: `S${i+1} (${session.date.split(",")[0]})${r ? " "+r.emoji : ""}`,
+        value: isNaN(w) ? null : w
+      });
     }
   });
 
-  select.onchange = renderChart;
+  if (chart) chart.destroy();
+  chart = new Chart(document.getElementById("progressChart"), {
+    type: "line",
+    data: {
+      labels: points.map(p => p.label),
+      datasets: [{
+        label: `${selected} (kg)`,
+        data:  points.map(p => p.value),
+        tension: 0.35, fill: true,
+        borderColor: "#2563eb",
+        backgroundColor: "rgba(37,99,235,0.10)",
+        pointBackgroundColor: "#2563eb",
+        pointRadius: 5, spanGaps: true
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: true } },
+      scales: { y: { beginAtZero: false, title: { display: true, text: "kg" } } }
+    }
+  });
 }
 
-if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("service-worker.js");
+/* ── Body weight chart ── */
+
+let bwChart;
+
+function renderBWChart() {
+  const pts = data.bodyweight;
+  const ctx = document.getElementById("bwChart");
+  if (bwChart) bwChart.destroy();
+  if (!pts.length) return;
+
+  bwChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: pts.map(p => p.date),
+      datasets: [{
+        label: "Body weight (kg)",
+        data:  pts.map(p => p.weight),
+        tension: 0.35, fill: true,
+        borderColor: "#0ea5e9",
+        backgroundColor: "rgba(14,165,233,0.10)",
+        pointBackgroundColor: "#0ea5e9",
+        pointRadius: 5, spanGaps: true
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: true } },
+      scales: { y: { beginAtZero: false, title: { display: true, text: "kg" } } }
+    }
+  });
 }
 
+/* ── Service worker ── */
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("service-worker.js");
+
+/* ── Init ── */
 renderWorkout();
 renderHistory();
 renderChart();
+renderBWChart();

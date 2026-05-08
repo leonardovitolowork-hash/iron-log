@@ -1,74 +1,87 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport"
-        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-
-  <title>Iron Log</title>
-
-  <meta name="theme-color" content="#111827">
-
-  <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css">
-
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Iron Log</title>
+<meta name="theme-color" content="#2563eb">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-
 <body>
 
 <div class="wrap">
 
+  <!-- Hero -->
   <div class="hero">
-    <h1>Iron Log</h1>
-    <p>
-      Train hard. Track everything. Stay consistent.
-    </p>
+    <h1>Iron Log 💪</h1>
+    <p id="quote"></p>
   </div>
 
+  <!-- Day tabs -->
   <div class="seg">
     <button id="dayABtn" class="active">Day A</button>
     <button id="dayBBtn">Day B</button>
   </div>
 
+  <!-- Workout -->
   <div id="workout"></div>
 
+  <!-- Body weight log -->
   <div class="card">
-    <div class="head">
-      <h2>Progression</h2>
-      <select id="exerciseSelect"></select>
+    <div class="head"><h2>Body Weight ⚖️</h2></div>
+    <div class="bwRow">
+      <input id="bwInput" placeholder="Today's weight (kg)" inputmode="decimal" style="margin-top:0">
+      <span class="bwHint">Saved when you log your session</span>
     </div>
-
-    <canvas id="progressChart"></canvas>
+    <canvas id="bwChart" style="margin-top:14px"></canvas>
   </div>
 
+  <!-- Rest Timer -->
   <div class="card">
-    <div class="head">
-      <h2>Rest Timer</h2>
-    </div>
-
-    <div class="timerWrap">
+    <div class="head"><h2>Rest Timer ⏱️</h2></div>
+    <div class="timerWrap" id="timerWrap">
       <div id="timerDisplay">01:30</div>
-
       <div class="timerBtns">
         <button onclick="startTimer(60)">60s</button>
         <button onclick="startTimer(90)">90s</button>
         <button onclick="startTimer(120)">120s</button>
+        <button onclick="startTimer(180)">3min</button>
       </div>
     </div>
   </div>
 
+  <!-- Progress chart -->
   <div class="card">
     <div class="head">
-      <h2>Workout History</h2>
+      <h2>Progress 📈</h2>
+      <select id="exerciseSelect"></select>
     </div>
+    <canvas id="progressChart"></canvas>
+  </div>
 
+  <!-- History -->
+  <div class="card">
+    <div class="head"><h2>Session History 🗂️</h2></div>
     <div id="history"></div>
+    <div class="backupRow">
+      <button class="backupBtn exportBtn" onclick="exportBackup()">💾 Export backup</button>
+      <button class="backupBtn importBtn" onclick="importBackup()">📂 Import backup</button>
+    </div>
   </div>
 
 </div>
 
-<script src="app.js"></script>
+<!-- Swap bottom sheet -->
+<div class="sheetOverlay" id="sheetOverlay" onclick="closeSwap()"></div>
+<div class="sheet" id="swapSheet">
+  <div class="sheetHandle"></div>
+  <h3 id="sheetTitle">Alternatives</h3>
+  <div id="sheetOptions"></div>
+  <button class="sheetClose" onclick="closeSwap()">Close</button>
+</div>
 
+<script src="app.js"></script>
 </body>
 </html>
