@@ -197,31 +197,6 @@ textarea { min-height: 70px; resize: vertical; }
   min-height: 18px;
 }
 
-/* Sets row */
-.setsRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-}
-.setsLabel { font-size: 13px; font-weight: 700; color: var(--muted); white-space: nowrap; }
-.setDots { display: flex; gap: 8px; }
-.setDot {
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  border: 2px solid var(--line);
-  background: #0b0f16;
-  cursor: pointer;
-  transition: background .15s, border-color .15s, transform .1s;
-}
-.setDot:active { transform: scale(.9); }
-.setDot.setDone {
-  background: var(--blue);
-  border-color: var(--blue);
-}
-.setsCount { font-size: 13px; font-weight: 800; color: var(--blue2); }
-
 /* Rating */
 .ratingRow {
   display: flex; align-items: center;
@@ -400,3 +375,120 @@ textarea { min-height: 70px; resize: vertical; }
 }
 
 .small { color: var(--muted); font-size: 14px; }
+
+/* ── Set table ── */
+.setTableWrap {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.setTableHead {
+  display: grid;
+  grid-template-columns: 28px 1fr 1fr 44px;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #0b0f16;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.setRow {
+  display: grid;
+  grid-template-columns: 28px 1fr 1fr 44px;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 12px;
+  border-top: 1px solid var(--line);
+  transition: background .15s;
+}
+.setRow.setRowDone { background: #0a1f12; }
+.setNumCol  { font-size: 12px; font-weight: 800; color: var(--muted); text-align: center; }
+.setKgCol   { }
+.setRepsCol { }
+.setDoneCol { display: flex; justify-content: center; }
+.setKgInput, .setRepsInput {
+  width: 100%; padding: 8px 6px;
+  border-radius: 8px; border: 1px solid var(--line);
+  background: #0b0f16; color: var(--text);
+  font: inherit; font-size: 14px; font-weight: 700;
+  margin-top: 0;
+  text-align: center;
+}
+.setKgInput:focus, .setRepsInput:focus {
+  outline: none; border-color: var(--blue);
+  box-shadow: 0 0 0 2px rgba(37,99,235,.2);
+}
+.setCheckBtn {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  border: 2px solid var(--line);
+  background: #0b0f16;
+  color: white; font-size: 16px; font-weight: 900;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, border-color .15s;
+}
+.setCheckBtn.setCheckDone {
+  background: var(--green);
+  border-color: var(--green);
+}
+.addSetBtn {
+  width: 100%; margin-top: 8px; border: 1px dashed var(--line);
+  background: transparent; color: var(--muted);
+  border-radius: 10px; padding: 10px;
+  font-size: 13px; font-weight: 800;
+  cursor: pointer;
+}
+.addSetBtn:active { background: #1a2332; }
+
+/* Form tip */
+.formTip {
+  margin-top: 6px;
+  padding: 7px 11px;
+  background: #0d1a0d;
+  border: 1px solid #166534;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #86efac;
+  font-weight: 600;
+}
+
+/* Draft banner */
+.draftBanner {
+  text-align: center;
+  padding: 10px;
+  background: #0f1f3d;
+  border: 1px solid #1e3a5f;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--blue2);
+  margin-top: 14px;
+}
+
+/* Clear draft */
+.clearDraftBtn {
+  width: 100%; margin-top: 8px; border: 1px solid #3b0f0f;
+  background: transparent; color: #f87171;
+  border-radius: 10px; padding: 12px;
+  font-size: 13px; font-weight: 800; cursor: pointer;
+}
+
+/* Set history chips */
+.setHistoryRow {
+  width: 100%; display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px;
+}
+.setHistoryChip {
+  font-size: 11px; font-weight: 700;
+  background: #1a2332; color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px; padding: 3px 8px;
+}
+.setHistoryChip.setHistoryDone {
+  background: #052e16;
+  border-color: #166534;
+  color: #4ade80;
+}

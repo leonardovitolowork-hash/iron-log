@@ -11,9 +11,6 @@ const QUOTES = [
 document.getElementById("quote").textContent =
   QUOTES[Math.floor(Math.random() * QUOTES.length)];
 
-// 35-Day Beach Cut Plan
-// Day A = Upper A  |  Day B = Lower A  |  Day C = Upper B  |  Day D = Lower B
-
 const PLAN = {
   A: [
     ["Chest Press",         "4x8-12", "32kg"],
@@ -105,18 +102,24 @@ const RATINGS = [
 ];
 
 let currentDay = "A";
-const STORAGE  = "iron_log_v3";
+const STORAGE   = "iron_log_v3";
+const DRAFT_KEY = "iron_log_draft";
 let data = JSON.parse(localStorage.getItem(STORAGE) || "{}");
 if (!data.history)    data.history    = [];
 if (!data.bodyweight) data.bodyweight = [];
 
-let sessionRatings = {};
-let sessionDone    = {};
-let sessionSets    = {};
+let draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || "{}");
 
-function save() {
-  localStorage.setItem(STORAGE, JSON.stringify(data));
-}
+function save()      { localStorage.setItem(STORAGE, JSON.stringify(data)); }
+function saveDraft() { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); }
+function clearDraft(){ localStorage.removeItem(DRAFT_KEY); draft = {}; }
+
+// Restore draft day
+(function(){
+  if (draft.day && ["A","B","C","D"].includes(draft.day)) {
+    currentDay = draft.day;
+  }
+})();
 
 /* ── Smart suggestion ── */
 
@@ -132,8 +135,12 @@ function getPersonalBest(exName) {
   let pb = 0;
   data.history.forEach(s => s.exercises.forEach(ex => {
     if (ex.name === exName) {
-      const w = parseFloat(ex.weight);
-      if (!isNaN(w) && w > pb) pb = w;
+      if (ex.sets && ex.sets.length) {
+        ex.sets.forEach(st => { const w = parseFloat(st.kg); if (!isNaN(w) && w > pb) pb = w; });
+      } else {
+        const w = parseFloat(ex.weight);
+        if (!isNaN(w) && w > pb) pb = w;
+      }
     }
   }));
   return pb;
@@ -141,100 +148,104 @@ function getPersonalBest(exName) {
 
 function getSuggestion(exName, fallback) {
   const last = getLastEntry(exName);
-  if (!last) return { text: `First time — try ${fallback}`, suggested: null, lastNote: null };
+  if (!last) return { text: `First time — try ${fallback}`, suggestedKg: null, lastNote: null };
 
-  const w        = parseFloat(last.weight);
   const r        = RATINGS.find(r => r.key === last.rating);
   const delta    = r ? r.delta : 0;
   const lastNote = last.note && last.note.trim() ? last.note.trim() : null;
 
-  if (isNaN(w)) return { text: `No weight logged last time`, suggested: null, lastNote };
+  let lastKg = null;
+  if (last.sets && last.sets.length) {
+    const vals = last.sets.map(s => parseFloat(s.kg)).filter(v => !isNaN(v));
+    if (vals.length) lastKg = vals[vals.length - 1];
+  } else {
+    const w = parseFloat(last.weight);
+    if (!isNaN(w)) lastKg = w;
+  }
 
-  const next   = Math.max(0, w + delta);
+  if (lastKg === null) return { text: `No weight logged last time`, suggestedKg: null, lastNote };
+
+  const next   = Math.max(0, lastKg + delta);
   const rLabel = r ? `${r.emoji} ${r.label}` : "no rating";
   const arrow  = delta > 0 ? "↑" : delta < 0 ? "↓" : "→";
   return {
-    text:      `Last: ${w} kg (${rLabel}) ${arrow} Try ${next} kg`,
-    suggested: next,
+    text:        `Last: ${lastKg} kg (${rLabel}) ${arrow} Try ${next} kg`,
+    suggestedKg: next,
     lastNote
   };
-}
-
-function calcVolume(setsStr, weight) {
-  const match = setsStr.match(/(\d+)x(\d+)/);
-  if (!match || isNaN(weight) || weight <= 0) return null;
-  const sets = parseInt(match[1]);
-  const reps = parseInt(match[2]);
-  return (sets * reps * weight).toFixed(0);
 }
 
 /* ── Workout form ── */
 
 function renderWorkout() {
-  sessionRatings = {};
-  sessionDone    = {};
-  sessionSets    = {};
   const wrap = document.getElementById("workout");
   wrap.innerHTML = "";
-
   const card = document.createElement("div");
   card.className = "card";
+
+  draft.day = currentDay;
+  if (!draft.exercises) draft.exercises = {};
+  saveDraft();
+
+  // set active day button
+  document.querySelectorAll(".seg button").forEach(b => b.classList.remove("active"));
+  const activeBtn = document.getElementById(`day${currentDay}Btn`);
+  if (activeBtn) activeBtn.classList.add("active");
 
   const rows = PLAN[currentDay].map((ex, i) => {
     const name       = ex[0];
     const setsStr    = ex[1];
+    const isCardio   = ex[2] === "—";
     const suggestion = getSuggestion(name, ex[2]);
-    const prefill    = suggestion.suggested !== null ? suggestion.suggested : "";
     const pb         = getPersonalBest(name);
     const totalSets  = parseInt(setsStr.match(/(\d+)x/)?.[1] || 3);
     const hasSwap    = !!SWAPS[name];
     const formTip    = FORM_TIPS[name] || "";
-    const isCardio   = ex[2] === "—";
 
-    const ratingBtns = RATINGS.map(r => `
-      <button type="button" class="ratingBtn" id="rating_${i}_${r.key}"
-        onclick="setRating(${i},'${r.key}','${name}')" title="${r.label}">
-        ${r.emoji}
-      </button>`).join("");
+    const draftEx     = draft.exercises[name] || {};
+    const isDone      = !!draftEx.done;
+    const draftRating = draftEx.rating || null;
+    const draftNote   = draftEx.note   || "";
+    const draftSets   = draftEx.sets   || [];
+
+    const ratingBtns = isCardio ? "" : RATINGS.map(r => `
+      <button type="button" class="ratingBtn${draftRating === r.key ? " ratingActive" : ""}" id="rating_${i}_${r.key}"
+        onclick="setRating(${i},'${r.key}','${name}')" title="${r.label}">${r.emoji}</button>`).join("");
 
     const noteReminder = suggestion.lastNote
-      ? `<div class="noteReminder">📌 Last note: ${suggestion.lastNote}</div>`
-      : "";
-
-    const setDots = isCardio ? "" : Array.from({length: totalSets}, (_, s) =>
-      `<button type="button" class="setDot" id="setDot_${i}_${s}"
-        onclick="tickSet(${i},${s},'${name}',${totalSets})"></button>`
-    ).join("");
-
-    const weightInput = isCardio ? "" : `
-      <input id="weight_${i}" placeholder="Weight used (kg)" inputmode="decimal" value="${prefill}"
-        oninput="checkPB(${i},'${name}'); updateVolume(${i},'${setsStr}')">
-      <div class="volumeRow" id="vol_${i}"></div>`;
-
-    const setsRow = isCardio ? "" : `
-      <div class="setsRow">
-        <span class="setsLabel">Sets done:</span>
-        <div class="setDots" id="setDots_${i}">${setDots}</div>
-        <span class="setsCount" id="setsCount_${i}">0/${totalSets}</span>
-      </div>`;
-
-    const ratingRow = isCardio ? "" : `
-      <div class="ratingRow">
-        <span class="ratingLabel">How did it feel?</span>
-        <div class="ratingBtns">${ratingBtns}</div>
-      </div>`;
+      ? `<div class="noteReminder">📌 Last note: ${suggestion.lastNote}</div>` : "";
 
     const tipDiv = formTip ? `<div class="formTip">💡 ${formTip}</div>` : "";
 
+    let setRowsHTML = "";
+    if (!isCardio) {
+      const sugKg = suggestion.suggestedKg !== null ? suggestion.suggestedKg : "";
+      const setsToRender = draftSets.length > 0
+        ? draftSets
+        : Array.from({length: totalSets}, () => ({kg: sugKg, reps: "", done: false}));
+      setRowsHTML = `
+        <div class="setTableWrap" id="setTable_${i}">
+          <div class="setTableHead">
+            <span class="setNumCol">#</span>
+            <span class="setKgCol">kg</span>
+            <span class="setRepsCol">reps</span>
+            <span class="setDoneCol">✓</span>
+          </div>
+          ${setsToRender.map((s, si) => buildSetRow(i, si, name, s.kg, s.reps, s.done)).join("")}
+        </div>
+        <button type="button" class="addSetBtn" onclick="addSet(${i},'${name}')">+ Add set</button>
+        <div class="volumeRow" id="vol_${i}"></div>`;
+    }
+
     return `
-      <div class="exercise" id="exCard_${i}">
+      <div class="exercise${isDone ? " exDone" : ""}" id="exCard_${i}">
         <div class="exHeader">
           <div class="exTitleRow">
             <h3>${name}</h3>
             ${hasSwap ? `<button type="button" class="swapTrigger" onclick="openSwap('${name}')">⇄ Swap</button>` : ""}
           </div>
           <label class="doneLabel">
-            <input type="checkbox" class="doneCheck" id="done_${i}"
+            <input type="checkbox" class="doneCheck" id="done_${i}" ${isDone ? "checked" : ""}
               onchange="setDone(${i},'${name}')">
             <span class="doneTick"></span>
             Done
@@ -245,80 +256,198 @@ function renderWorkout() {
         ${!isCardio ? `<div class="suggestion">${suggestion.text}</div>` : ""}
         ${pb > 0 ? `<div class="pbBadge" id="pb_${i}">🏆 PB: ${pb} kg</div>` : `<div id="pb_${i}"></div>`}
         ${noteReminder}
-        ${weightInput}
-        ${setsRow}
-        ${ratingRow}
-        <textarea id="note_${i}" placeholder="Notes"></textarea>
+        ${setRowsHTML}
+        <div class="ratingRow">${isCardio ? "" : `<span class="ratingLabel">How did it feel?</span><div class="ratingBtns">${ratingBtns}</div>`}</div>
+        <textarea id="note_${i}" placeholder="Notes" oninput="saveNoteDraft(${i},'${name}')">${draftNote}</textarea>
       </div>`;
   }).join("");
 
+  const hasDraft = draft.exercises && Object.values(draft.exercises).some(e => e.sets && e.sets.length > 0);
+
   card.innerHTML = `
     ${rows}
+    ${hasDraft ? `<div class="draftBanner">💾 Draft auto-saved — your sets are safe</div>` : ""}
     <button class="actionBtn" onclick="logSession()">Log Day ${currentDay} Session 🔥</button>
+    <button class="clearDraftBtn" onclick="confirmClearDraft()">🗑 Clear draft</button>
     <div id="logStatus" class="logStatus"></div>`;
 
   wrap.appendChild(card);
+
+  PLAN[currentDay].forEach((ex, i) => {
+    if (ex[2] !== "—") updateVolumeDisplay(i, ex[0]);
+  });
 }
 
-function tickSet(i, s, exName, totalSets) {
-  const dot = document.getElementById(`setDot_${i}_${s}`);
-  dot.classList.toggle("setDone");
-  const done = document.querySelectorAll(`#setDots_${i} .setDot.setDone`).length;
-  sessionSets[exName] = done;
-  document.getElementById(`setsCount_${i}`).textContent = `${done}/${totalSets}`;
-  if (done === totalSets) startTimer(90);
+function buildSetRow(exIdx, setIdx, exName, kg, reps, done) {
+  return `
+    <div class="setRow${done ? " setRowDone" : ""}" id="setRow_${exIdx}_${setIdx}">
+      <span class="setNumCol">${setIdx + 1}</span>
+      <input class="setKgInput setKgCol" type="number" inputmode="decimal" placeholder="kg"
+        value="${kg !== undefined && kg !== "" ? kg : ""}"
+        oninput="updateSetDraft(${exIdx},${setIdx},'${exName}')"
+        id="setKg_${exIdx}_${setIdx}">
+      <input class="setRepsInput setRepsCol" type="number" inputmode="numeric" placeholder="reps"
+        value="${reps !== undefined && reps !== "" ? reps : ""}"
+        oninput="updateSetDraft(${exIdx},${setIdx},'${exName}')"
+        id="setReps_${exIdx}_${setIdx}">
+      <button type="button" class="setCheckBtn setDoneCol${done ? " setCheckDone" : ""}"
+        id="setCheck_${exIdx}_${setIdx}"
+        onclick="toggleSetDone(${exIdx},${setIdx},'${exName}')">
+        ${done ? "✓" : ""}
+      </button>
+    </div>`;
 }
 
-function updateVolume(i, setsStr) {
-  const w   = parseFloat(document.getElementById(`weight_${i}`).value);
-  const vol = calcVolume(setsStr, w);
-  const el  = document.getElementById(`vol_${i}`);
-  if (el) el.textContent = vol ? `Total volume: ${vol} kg` : "";
+function addSet(exIdx, exName) {
+  if (!draft.exercises[exName]) draft.exercises[exName] = { sets: [] };
+  if (!draft.exercises[exName].sets) draft.exercises[exName].sets = [];
+  const sets  = draft.exercises[exName].sets;
+  const lastKg = sets.length ? sets[sets.length-1].kg : "";
+  sets.push({ kg: lastKg, reps: "", done: false });
+  saveDraft();
+  const newIdx = sets.length - 1;
+  const table  = document.getElementById(`setTable_${exIdx}`);
+  if (table) {
+    const tmp = document.createElement("div");
+    tmp.innerHTML = buildSetRow(exIdx, newIdx, exName, lastKg, "", false);
+    while (tmp.firstChild) table.appendChild(tmp.firstChild);
+  }
+  updateVolumeDisplay(exIdx, exName);
 }
 
-function setDone(i, exName) {
-  const checked = document.getElementById(`done_${i}`).checked;
-  sessionDone[exName] = checked;
-  document.getElementById(`exCard_${i}`).classList.toggle("exDone", checked);
+function toggleSetDone(exIdx, setIdx, exName) {
+  if (!draft.exercises[exName]) draft.exercises[exName] = { sets: [] };
+  if (!draft.exercises[exName].sets) draft.exercises[exName].sets = [];
+  const sets = draft.exercises[exName].sets;
+  // sync current kg/reps first
+  const kgEl   = document.getElementById(`setKg_${exIdx}_${setIdx}`);
+  const repsEl = document.getElementById(`setReps_${exIdx}_${setIdx}`);
+  if (!sets[setIdx]) sets[setIdx] = {};
+  if (kgEl)   sets[setIdx].kg   = kgEl.value;
+  if (repsEl) sets[setIdx].reps = repsEl.value;
+  sets[setIdx].done = !sets[setIdx].done;
+  saveDraft();
+
+  const btn = document.getElementById(`setCheck_${exIdx}_${setIdx}`);
+  const row = document.getElementById(`setRow_${exIdx}_${setIdx}`);
+  if (btn) {
+    btn.classList.toggle("setCheckDone", sets[setIdx].done);
+    btn.textContent = sets[setIdx].done ? "✓" : "";
+  }
+  if (row) row.classList.toggle("setRowDone", sets[setIdx].done);
+
+  if (sets[setIdx].done) startTimer(90);
+}
+
+function updateSetDraft(exIdx, setIdx, exName) {
+  if (!draft.exercises[exName]) draft.exercises[exName] = { sets: [] };
+  if (!draft.exercises[exName].sets) draft.exercises[exName].sets = [];
+  const kgEl   = document.getElementById(`setKg_${exIdx}_${setIdx}`);
+  const repsEl = document.getElementById(`setReps_${exIdx}_${setIdx}`);
+  const sets   = draft.exercises[exName].sets;
+  if (!sets[setIdx]) sets[setIdx] = {};
+  if (kgEl)   sets[setIdx].kg   = kgEl.value;
+  if (repsEl) sets[setIdx].reps = repsEl.value;
+  saveDraft();
+  updateVolumeDisplay(exIdx, exName);
+
+  const maxKg = Math.max(...sets.map(s => parseFloat(s.kg) || 0));
+  const pb    = getPersonalBest(exName);
+  const el    = document.getElementById(`pb_${exIdx}`);
+  if (el) {
+    if (maxKg > 0 && maxKg > pb) {
+      el.innerHTML = `🏆 New PB incoming! ${maxKg} kg`;
+      el.className = "pbBadge pbNew";
+    } else if (pb > 0) {
+      el.innerHTML = `🏆 PB: ${pb} kg`;
+      el.className = "pbBadge";
+    } else {
+      el.innerHTML = "";
+    }
+  }
+}
+
+function updateVolumeDisplay(exIdx, exName) {
+  const el   = document.getElementById(`vol_${exIdx}`);
+  if (!el) return;
+  const sets = (draft.exercises[exName] && draft.exercises[exName].sets) || [];
+  const vol  = sets.reduce((acc, s) => acc + (parseFloat(s.kg)||0) * (parseFloat(s.reps)||0), 0);
+  el.textContent = vol > 0 ? `Total volume: ${vol.toFixed(0)} kg` : "";
+}
+
+function setDone(exIdx, exName) {
+  const checked = document.getElementById(`done_${exIdx}`).checked;
+  if (!draft.exercises[exName]) draft.exercises[exName] = {};
+  draft.exercises[exName].done = checked;
+  collectSetsFromDOM(exIdx, exName);
+  saveDraft();
+  document.getElementById(`exCard_${exIdx}`).classList.toggle("exDone", checked);
   if (checked) startTimer(90);
 }
 
-function setRating(i, key, exName) {
-  sessionRatings[exName] = key;
+function setRating(exIdx, key, exName) {
+  if (!draft.exercises[exName]) draft.exercises[exName] = {};
+  draft.exercises[exName].rating = key;
+  saveDraft();
   RATINGS.forEach(r => {
-    const btn = document.getElementById(`rating_${i}_${r.key}`);
+    const btn = document.getElementById(`rating_${exIdx}_${r.key}`);
     if (btn) btn.classList.toggle("ratingActive", r.key === key);
   });
 }
 
-function checkPB(i, exName) {
-  const val = parseFloat(document.getElementById(`weight_${i}`).value);
-  const pb  = getPersonalBest(exName);
-  const el  = document.getElementById(`pb_${i}`);
-  if (!el) return;
-  if (!isNaN(val) && val > pb) {
-    el.innerHTML = `🏆 New PB incoming! ${val} kg`;
-    el.className = "pbBadge pbNew";
-  } else if (pb > 0) {
-    el.innerHTML = `🏆 PB: ${pb} kg`;
-    el.className = "pbBadge";
-  } else {
-    el.innerHTML = "";
-  }
+function saveNoteDraft(exIdx, exName) {
+  if (!draft.exercises[exName]) draft.exercises[exName] = {};
+  const el = document.getElementById(`note_${exIdx}`);
+  if (el) draft.exercises[exName].note = el.value;
+  saveDraft();
+}
+
+function collectSetsFromDOM(exIdx, exName) {
+  if (!draft.exercises[exName]) draft.exercises[exName] = {};
+  const existing = (draft.exercises[exName].sets || []);
+  existing.forEach((s, si) => {
+    const kgEl   = document.getElementById(`setKg_${exIdx}_${si}`);
+    const repsEl = document.getElementById(`setReps_${exIdx}_${si}`);
+    if (kgEl)   s.kg   = kgEl.value;
+    if (repsEl) s.reps = repsEl.value;
+  });
+  draft.exercises[exName].sets = existing;
+}
+
+function collectAllFromDOM() {
+  PLAN[currentDay].forEach((ex, i) => {
+    const name = ex[0];
+    if (!draft.exercises[name]) draft.exercises[name] = {};
+    const noteEl = document.getElementById(`note_${i}`);
+    if (noteEl) draft.exercises[name].note = noteEl.value;
+    if (ex[2] !== "—") collectSetsFromDOM(i, name);
+    const doneEl = document.getElementById(`done_${i}`);
+    if (doneEl) draft.exercises[name].done = doneEl.checked;
+  });
+  saveDraft();
 }
 
 function logSession() {
+  collectAllFromDOM();
+
   const exercises = PLAN[currentDay].map((ex, i) => {
-    const wEl = document.getElementById(`weight_${i}`);
-    const w = wEl ? wEl.value.trim() : "";
+    const name    = ex[0];
+    const draftEx = draft.exercises[name] || {};
+    const sets    = draftEx.sets || [];
+    const vol     = sets.length
+      ? sets.reduce((a, s) => a + (parseFloat(s.kg)||0)*(parseFloat(s.reps)||0), 0).toFixed(0)
+      : null;
+    const maxKg = sets.length
+      ? Math.max(...sets.map(s => parseFloat(s.kg)||0))
+      : null;
     return {
-      name:   ex[0],
-      weight: w,
-      note:   document.getElementById(`note_${i}`).value.trim(),
-      rating: sessionRatings[ex[0]] || null,
-      done:   !!sessionDone[ex[0]],
-      sets:   sessionSets[ex[0]] || 0,
-      volume: calcVolume(ex[1], parseFloat(w))
+      name,
+      weight: maxKg !== null && maxKg > 0 ? String(maxKg) : "",
+      sets,
+      note:   draftEx.note   || "",
+      rating: draftEx.rating || null,
+      done:   !!draftEx.done,
+      volume: vol
     };
   });
 
@@ -332,20 +461,25 @@ function logSession() {
     id:        Date.now(),
     day:       currentDay,
     date:      new Date().toLocaleString(),
-    exercises: exercises
+    exercises
   });
 
   save();
+  clearDraft();
   renderHistory();
   renderChart();
   renderBWChart();
-  sessionRatings = {};
-  sessionDone    = {};
-  sessionSets    = {};
 
   const status = document.getElementById("logStatus");
   status.textContent = "Session logged 🔥 Keep pushing!";
   setTimeout(() => { status.textContent = ""; renderWorkout(); }, 2500);
+}
+
+function confirmClearDraft() {
+  if (confirm("Clear the current draft? All unsaved sets will be lost.")) {
+    clearDraft();
+    renderWorkout();
+  }
 }
 
 /* ── Day toggle ── */
@@ -353,6 +487,8 @@ function logSession() {
 ["A","B","C","D"].forEach(d => {
   document.getElementById(`day${d}Btn`).addEventListener("click", () => {
     currentDay = d;
+    draft.day  = d;
+    saveDraft();
     document.querySelectorAll(".seg button").forEach(b => b.classList.remove("active"));
     document.getElementById(`day${d}Btn`).classList.add("active");
     renderWorkout();
@@ -423,10 +559,20 @@ function renderHistory() {
       const r    = ex.rating ? RATINGS.find(x => x.key === ex.rating) : null;
       const tick = ex.done ? `<span class="doneBadge">✓</span>` : "";
       const vol  = ex.volume ? `<span class="volTag">${ex.volume} kg vol</span>` : "";
+
+      let setDetail = "";
+      if (ex.sets && ex.sets.length) {
+        setDetail = `<div class="setHistoryRow">${ex.sets.map((s, si) =>
+          `<span class="setHistoryChip${s.done ? " setHistoryDone" : ""}">${si+1}: ${s.kg||"?"}kg × ${s.reps||"?"}r</span>`
+        ).join("")}</div>`;
+      } else if (ex.weight) {
+        setDetail = `<span class="historyExWeight">${ex.weight} kg</span>`;
+      }
+
       return `
         <div class="historyExRow">
           <span class="historyExName">${tick}${ex.name}</span>
-          <span class="historyExWeight">${ex.weight ? ex.weight + " kg" : "—"}</span>
+          ${setDetail}
           ${r ? `<span class="historyRating">${r.emoji} ${r.label}</span>` : ""}
           ${vol}
           ${ex.note ? `<div class="small historyNote">${ex.note}</div>` : ""}
@@ -535,11 +681,18 @@ function renderChart(forcedName) {
   data.history.forEach((session, i) => {
     const match = session.exercises.find(ex => ex.name === selected);
     if (match) {
-      const w = parseFloat(match.weight);
+      let maxKg = null;
+      if (match.sets && match.sets.length) {
+        const vals = match.sets.map(s => parseFloat(s.kg)).filter(v => !isNaN(v));
+        if (vals.length) maxKg = Math.max(...vals);
+      } else {
+        const w = parseFloat(match.weight);
+        if (!isNaN(w)) maxKg = w;
+      }
       const r = match.rating ? RATINGS.find(x => x.key === match.rating) : null;
       points.push({
         label: `S${i+1} (${session.date.split(",")[0]})${r ? " "+r.emoji : ""}`,
-        value: isNaN(w) ? null : w
+        value: maxKg
       });
     }
   });
