@@ -3,38 +3,99 @@ const QUOTES = [
   "Progressive overload is the game. 🔥",
   "Every rep counts. Every session matters. ⚡",
   "Consistency beats intensity. Stay the course. 🏆",
-  "You lift, you grow. Simple as that. 💥"
+  "You lift, you grow. Simple as that. 💥",
+  "35 days to the beach. Make every set count. 🌊",
+  "Cut hard, eat smart, train heavy. 🔱"
 ];
 
 document.getElementById("quote").textContent =
   QUOTES[Math.floor(Math.random() * QUOTES.length)];
 
+// 35-Day Beach Cut Plan
+// Day A = Upper A  |  Day B = Lower A  |  Day C = Upper B  |  Day D = Lower B
+
 const PLAN = {
   A: [
-    ["Leg Press",      "3x10",  "20kg"],
-    ["Chest Press",    "3x10",  "30kg"],
-    ["Leg Extension",  "3x12",  "25kg"],
-    ["Pec Deck",       "2x12",  "35kg"],
-    ["Calf Raise",     "3x15",  "25kg"],
-    ["Adductor",       "2x15",  "37kg"]
+    ["Chest Press",         "4x8-12", "32kg"],
+    ["Lat Pulldown",        "4x8-12", "15kg"],
+    ["Seated Row",          "3x10-12","20kg"],
+    ["Shoulder Press",      "3x10",   "12kg"],
+    ["Lateral Raises",      "3x15",   "6kg"],
+    ["Triceps Pressdown",   "3x12",   "15kg"],
+    ["Biceps Curl",         "3x12",   "10kg"],
+    ["Incline Walk",        "20min",  "—"]
   ],
   B: [
-    ["Lat Pulldown",     "3x10", "39kg"],
-    ["Seated Row",       "3x10", "30kg"],
-    ["Leg Curl",         "3x12", "28kg"],
-    ["Rear Delt",        "3x12", "25kg"],
-    ["Tricep Pushdown",  "2x12", "30kg"],
-    ["Bicep Curl",       "2x12", "0kg"]
+    ["Leg Press",           "4x8-12", "20kg"],
+    ["Romanian Deadlift",   "3x8-10", "20kg"],
+    ["Leg Curl",            "3x10-12","18kg"],
+    ["Leg Extension",       "3x12",   "18kg"],
+    ["Calf Raises",         "4x15",   "20kg"],
+    ["Plank",               "3x30sec","—"],
+    ["Incline Walk",        "15min",  "—"]
+  ],
+  C: [
+    ["Incline Chest Press", "4x8-10", "28kg"],
+    ["One-Arm Row",         "4x8-12", "20kg"],
+    ["Rear Delt Fly",       "3x15",   "6kg"],
+    ["Face Pulls",          "3x15",   "10kg"],
+    ["Lateral Raises",      "3x15",   "6kg"],
+    ["Triceps Overhead",    "3x12",   "10kg"],
+    ["Hammer Curl",         "3x12",   "10kg"],
+    ["Incline Walk",        "20min",  "—"]
+  ],
+  D: [
+    ["Hack Squat",          "4x8-10", "20kg"],
+    ["Hip Thrust",          "4x10-12","20kg"],
+    ["Walking Lunges",      "3x10",   "10kg"],
+    ["Abductor Machine",    "3x15-20","32kg"],
+    ["Leg Extension",       "2x12",   "18kg"],
+    ["Dead Bug",            "3x10",   "—"],
+    ["Incline Walk",        "15min",  "—"]
   ]
 };
 
+const FORM_TIPS = {
+  "Chest Press":        "Elbows at 45°, full range, slow eccentric.",
+  "Lat Pulldown":       "Pull to upper chest, squeeze lats.",
+  "Seated Row":         "Pinch shoulder blades at end.",
+  "Shoulder Press":     "Core tight, no back arch.",
+  "Lateral Raises":     "Lead elbows, no momentum.",
+  "Triceps Pressdown":  "Elbows pinned, full extension.",
+  "Biceps Curl":        "No swing, slow on way down.",
+  "Incline Walk":       "7-8% incline, 5.5-6 km/h. Stay consistent.",
+  "Leg Press":          "Drive through heels, full depth.",
+  "Romanian Deadlift":  "Hinge hips, neutral spine.",
+  "Leg Curl":           "Control the return every rep.",
+  "Leg Extension":      "Slow up and down, no slamming.",
+  "Calf Raises":        "Full stretch at bottom, pause at top.",
+  "Plank":              "Ribs down, glutes squeezed.",
+  "Incline Chest Press":"30-45° incline, full stretch.",
+  "One-Arm Row":        "Pull elbow to hip, no rotation.",
+  "Rear Delt Fly":      "Squeeze hard at the top.",
+  "Face Pulls":         "Pull to nose, elbows high.",
+  "Triceps Overhead":   "Keep elbows close.",
+  "Hammer Curl":        "Neutral grip, smooth reps.",
+  "Hack Squat":         "Depth below parallel, knees track toes.",
+  "Hip Thrust":         "Squeeze glutes at top lockout.",
+  "Walking Lunges":     "Tall posture, push through front heel.",
+  "Abductor Machine":   "Lean forward, squeeze wide.",
+  "Dead Bug":           "Lower back pressed flat to floor."
+};
+
 const SWAPS = {
-  "Chest Press":    ["Incline Press", "Machine Press", "DB Press"],
-  "Lat Pulldown":   ["Pull Ups", "Close Grip Pulldown"],
-  "Leg Press":      ["Hack Squat", "Smith Squat"],
-  "Seated Row":     ["Cable Row", "DB Row"],
-  "Tricep Pushdown":["Overhead Tricep", "Skull Crushers"],
-  "Bicep Curl":     ["Hammer Curl", "Incline DB Curl"]
+  "Chest Press":        ["Incline Press", "Machine Press", "DB Press"],
+  "Lat Pulldown":       ["Pull Ups", "Close Grip Pulldown"],
+  "Leg Press":          ["Smith Squat", "Leg Press narrow stance"],
+  "Seated Row":         ["Cable Row", "DB Row"],
+  "Triceps Pressdown":  ["Overhead Tricep", "Skull Crushers"],
+  "Biceps Curl":        ["Hammer Curl", "Incline DB Curl"],
+  "Romanian Deadlift":  ["Stiff Leg Deadlift", "Good Morning"],
+  "Hack Squat":         ["Smith Machine Squat", "Goblet Squat"],
+  "Hip Thrust":         ["Glute Bridge", "Cable Kickback"],
+  "Incline Chest Press":["Flat DB Press", "Cable Fly"],
+  "One-Arm Row":        ["Seated Row", "DB Row"],
+  "Face Pulls":         ["Band Pull Apart", "Reverse Fly"]
 };
 
 const RATINGS = [
@@ -51,7 +112,7 @@ if (!data.bodyweight) data.bodyweight = [];
 
 let sessionRatings = {};
 let sessionDone    = {};
-let sessionSets    = {}; // { exName: setsCompleted }
+let sessionSets    = {};
 
 function save() {
   localStorage.setItem(STORAGE, JSON.stringify(data));
@@ -100,7 +161,6 @@ function getSuggestion(exName, fallback) {
 }
 
 function calcVolume(setsStr, weight) {
-  // parse sets from e.g. "3x10" → 3 sets × 10 reps × weight
   const match = setsStr.match(/(\d+)x(\d+)/);
   if (!match || isNaN(weight) || weight <= 0) return null;
   const sets = parseInt(match[1]);
@@ -128,6 +188,8 @@ function renderWorkout() {
     const pb         = getPersonalBest(name);
     const totalSets  = parseInt(setsStr.match(/(\d+)x/)?.[1] || 3);
     const hasSwap    = !!SWAPS[name];
+    const formTip    = FORM_TIPS[name] || "";
+    const isCardio   = ex[2] === "—";
 
     const ratingBtns = RATINGS.map(r => `
       <button type="button" class="ratingBtn" id="rating_${i}_${r.key}"
@@ -139,10 +201,30 @@ function renderWorkout() {
       ? `<div class="noteReminder">📌 Last note: ${suggestion.lastNote}</div>`
       : "";
 
-    const setDots = Array.from({length: totalSets}, (_, s) =>
+    const setDots = isCardio ? "" : Array.from({length: totalSets}, (_, s) =>
       `<button type="button" class="setDot" id="setDot_${i}_${s}"
         onclick="tickSet(${i},${s},'${name}',${totalSets})"></button>`
     ).join("");
+
+    const weightInput = isCardio ? "" : `
+      <input id="weight_${i}" placeholder="Weight used (kg)" inputmode="decimal" value="${prefill}"
+        oninput="checkPB(${i},'${name}'); updateVolume(${i},'${setsStr}')">
+      <div class="volumeRow" id="vol_${i}"></div>`;
+
+    const setsRow = isCardio ? "" : `
+      <div class="setsRow">
+        <span class="setsLabel">Sets done:</span>
+        <div class="setDots" id="setDots_${i}">${setDots}</div>
+        <span class="setsCount" id="setsCount_${i}">0/${totalSets}</span>
+      </div>`;
+
+    const ratingRow = isCardio ? "" : `
+      <div class="ratingRow">
+        <span class="ratingLabel">How did it feel?</span>
+        <div class="ratingBtns">${ratingBtns}</div>
+      </div>`;
+
+    const tipDiv = formTip ? `<div class="formTip">💡 ${formTip}</div>` : "";
 
     return `
       <div class="exercise" id="exCard_${i}">
@@ -158,22 +240,14 @@ function renderWorkout() {
             Done
           </label>
         </div>
-        <div class="meta">${setsStr}</div>
-        <div class="suggestion">${suggestion.text}</div>
+        <div class="meta">${setsStr}${ex[2] !== "—" ? " · target: " + ex[2] : ""}</div>
+        ${tipDiv}
+        ${!isCardio ? `<div class="suggestion">${suggestion.text}</div>` : ""}
         ${pb > 0 ? `<div class="pbBadge" id="pb_${i}">🏆 PB: ${pb} kg</div>` : `<div id="pb_${i}"></div>`}
         ${noteReminder}
-        <input id="weight_${i}" placeholder="Weight used (kg)" inputmode="decimal" value="${prefill}"
-          oninput="checkPB(${i},'${name}'); updateVolume(${i},'${setsStr}')">
-        <div class="volumeRow" id="vol_${i}"></div>
-        <div class="setsRow">
-          <span class="setsLabel">Sets done:</span>
-          <div class="setDots" id="setDots_${i}">${setDots}</div>
-          <span class="setsCount" id="setsCount_${i}">0/${totalSets}</span>
-        </div>
-        <div class="ratingRow">
-          <span class="ratingLabel">How did it feel?</span>
-          <div class="ratingBtns">${ratingBtns}</div>
-        </div>
+        ${weightInput}
+        ${setsRow}
+        ${ratingRow}
         <textarea id="note_${i}" placeholder="Notes"></textarea>
       </div>`;
   }).join("");
@@ -199,7 +273,7 @@ function updateVolume(i, setsStr) {
   const w   = parseFloat(document.getElementById(`weight_${i}`).value);
   const vol = calcVolume(setsStr, w);
   const el  = document.getElementById(`vol_${i}`);
-  el.textContent = vol ? `Total volume: ${vol} kg` : "";
+  if (el) el.textContent = vol ? `Total volume: ${vol} kg` : "";
 }
 
 function setDone(i, exName) {
@@ -235,7 +309,8 @@ function checkPB(i, exName) {
 
 function logSession() {
   const exercises = PLAN[currentDay].map((ex, i) => {
-    const w = document.getElementById(`weight_${i}`).value.trim();
+    const wEl = document.getElementById(`weight_${i}`);
+    const w = wEl ? wEl.value.trim() : "";
     return {
       name:   ex[0],
       weight: w,
@@ -275,17 +350,13 @@ function logSession() {
 
 /* ── Day toggle ── */
 
-document.getElementById("dayABtn").addEventListener("click", () => {
-  currentDay = "A";
-  document.getElementById("dayABtn").classList.add("active");
-  document.getElementById("dayBBtn").classList.remove("active");
-  renderWorkout();
-});
-document.getElementById("dayBBtn").addEventListener("click", () => {
-  currentDay = "B";
-  document.getElementById("dayBBtn").classList.add("active");
-  document.getElementById("dayABtn").classList.remove("active");
-  renderWorkout();
+["A","B","C","D"].forEach(d => {
+  document.getElementById(`day${d}Btn`).addEventListener("click", () => {
+    currentDay = d;
+    document.querySelectorAll(".seg button").forEach(b => b.classList.remove("active"));
+    document.getElementById(`day${d}Btn`).classList.add("active");
+    renderWorkout();
+  });
 });
 
 /* ── Swap sheet ── */
