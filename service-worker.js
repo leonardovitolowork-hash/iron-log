@@ -1,5 +1,5 @@
-const CACHE = "iron-log-cache-repair-20261005-1";
-const ASSETS = ["./", "./index.html", "./style.css", "./app.js", "./manifest.json"];
+const CACHE = "iron-log-cache-graphite-mint-20261005-1";
+const ASSETS = ["./", "./index.html", "./style.css", "./theme.css", "./app.js", "./manifest.json"];
 self.addEventListener("install", event => {event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));});
 self.addEventListener("activate", event => {event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith("iron-log-cache-")&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
 self.addEventListener("fetch", event => {

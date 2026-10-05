@@ -1,0 +1,70 @@
+/* Graphite + mint: visual overrides for the repaired Iron Log interface. */
+:root{--bg:#101214;--card:#1A1D21;--blue:#A8D5BA;--blue2:#C1E3CE;--line:#343A40;--text:#F2F0EA;--muted:#A6ADB5;--green:#246345;--yellow:#E4C384;--shadow:0 6px 20px rgba(0,0,0,.12)}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.45}
+.wrap{max-width:760px;padding:20px 16px 90px}
+.hero{background:transparent;border:0;border-radius:0;padding:8px 2px 18px;box-shadow:none;margin-bottom:4px}
+.hero h1{font-size:27px;line-height:1.15;letter-spacing:-.045em;font-weight:800}
+.hero p{margin:9px 0 0;font-size:13px;color:var(--muted);line-height:1.5}
+.seg{display:flex;flex-wrap:wrap;gap:6px;background:#16191C;border:1px solid var(--line);padding:6px;border-radius:15px;margin-bottom:18px}
+.seg button{flex:1 1 100px;min-width:0;min-height:44px;padding:10px 8px;background:transparent;border:0;border-radius:10px;font-size:13px;font-weight:700;letter-spacing:-.01em;color:var(--muted);box-shadow:none;cursor:pointer}
+.seg button.active{background:var(--blue);color:var(--bg);border:0;box-shadow:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:none;margin-bottom:18px}
+#workout>.card{background:transparent;border:0;padding:0;box-shadow:none}
+.exercise{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin:0 0 14px;box-shadow:none;transition:border-color .18s,background .18s}
+.exercise.exDone{background:#18251D;border-color:#407052;opacity:1}
+.exHeader{gap:12px}.exTitleRow{gap:10px;align-items:center;flex-wrap:wrap}
+.exTitleRow h3{font-size:18px;font-weight:750;letter-spacing:-.025em;line-height:1.25}
+.swapTrigger{min-height:36px;padding:7px 10px;background:#242A2D;border:1px solid #40494F;color:var(--text);border-radius:9px;font-size:11px;font-weight:650}
+.doneLabel{font-size:11px;color:var(--muted);gap:7px}.doneTick{width:30px;height:30px;border-radius:9px;background:var(--bg);border:1px solid #626C75}
+.doneLabel input:checked+.doneTick{background:var(--green);border-color:#54966E;color:var(--text)}
+.meta{font-size:12px;color:var(--muted);margin-top:8px}
+.formTip{background:transparent;border:0;border-left:2px solid #52635A;border-radius:0;padding:3px 0 3px 10px;margin-top:12px;color:var(--muted);font-size:12px;font-weight:450;line-height:1.6}
+.suggestion{background:#202A24;border:1px solid #3D5446;border-radius:10px;padding:9px 11px;font-size:12px;font-weight:550;color:var(--blue2);margin-top:12px}
+.pbBadge{background:#30291E;border:1px solid #716044;color:var(--yellow);border-radius:8px;font-size:11px;padding:4px 8px;margin-top:9px;animation:none}
+.pbBadge.pbNew{background:#1A3223;border-color:#4A7958;color:#C1E3CE;animation:none}
+.noteReminder{background:#27272C;border:1px solid #45454E;border-radius:9px;color:#C1BDC9;font-size:12px;font-weight:450}
+input,textarea,select{background:#121518;color:var(--text);border:1px solid #424B52;border-radius:10px;padding:12px;font:inherit}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--blue);outline-offset:2px;border-color:var(--blue);box-shadow:none}
+input::placeholder,textarea::placeholder{color:#A6ADB5;opacity:1}
+textarea{font-size:13px;min-height:60px;padding:11px 12px;margin-top:12px}
+.setTableWrap{border:1px solid var(--line);border-radius:12px;margin-top:15px}
+.setTableHead,.setRow{grid-template-columns:25px minmax(0,1fr) minmax(0,1fr) 44px;gap:8px}
+.setTableHead{background:#141719;color:var(--muted);font-size:10px;letter-spacing:.09em;padding:9px 10px}
+.setRow{padding:8px 10px;border-top:1px solid var(--line);background:transparent}
+.setRow.setRowDone{background:#1A2B21}
+.setNumCol{font-size:12px;color:var(--muted);font-weight:600}
+.setKgInput,.setRepsInput{height:44px;min-width:0;background:#121518;border:1px solid #424B52;color:var(--text);border-radius:9px;font-size:17px;font-weight:650;font-variant-numeric:tabular-nums;padding:8px 5px;margin:0;box-shadow:none}
+.setKgInput:focus,.setRepsInput:focus{outline:2px solid var(--blue);outline-offset:1px;box-shadow:none}
+.setCheckBtn{width:44px;height:44px;background:#121518;border:1px solid #626C75;color:var(--text);border-radius:9px;font-size:17px}
+.setCheckBtn.setCheckDone{background:var(--green);border-color:#54966E;color:var(--text)}
+.addSetBtn{min-height:44px;color:var(--muted);border:1px dashed #58636B;background:transparent;border-radius:10px;font-size:12px;font-weight:550}
+.addSetBtn:active{background:#242A2D}
+.volumeRow{font-size:11px;font-weight:500;color:var(--muted);margin-top:9px;min-height:0}
+.ratingRow{margin-top:14px;gap:10px}.ratingLabel{font-size:12px;font-weight:450;color:var(--muted)}
+.ratingBtn{width:44px;height:44px;border:1px solid #424B52;background:#121518;font-size:19px;border-radius:12px;transform:none}
+.ratingBtn.ratingActive{background:#263E2E;border:1px solid #83B794;transform:none}
+.actionBtn{background:var(--blue);color:var(--bg);border:0;border-radius:12px;box-shadow:none;font-size:15px;font-weight:750;min-height:50px;padding:14px 16px;margin-top:14px}
+.logStatus{color:var(--blue2);font-size:13px;font-weight:600}
+.draftBanner{background:transparent;border:0;padding:8px 4px;color:var(--muted);font-size:12px;font-weight:450;text-align:center}
+.clearDraftBtn{border:1px solid #79534F;color:#F1AAA0;background:transparent;border-radius:12px;font-size:12px;font-weight:550;min-height:44px}
+.head h2{font-size:17px;font-weight:700;letter-spacing:-.02em}.head select{font-size:12px;max-width:100%;min-height:44px}
+.bwHint{font-size:12px;color:var(--muted)}
+#timerDisplay,.amrapTimer{font-size:54px;letter-spacing:-.055em;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+.timerRunning #timerDisplay,.amrapActive{color:var(--blue2)}
+.timerBtns button{background:#242A2D;border:1px solid #424B52;color:var(--text);border-radius:10px;min-height:44px;font-size:13px;font-weight:600}
+.walkingGrid{gap:10px;margin-top:14px}.walkingGrid label{font-size:11px;color:var(--muted)}
+.historyItem{background:#181C1F;border:1px solid var(--line);border-radius:12px;padding:14px}
+.historyExRow{background:#121518;border:1px solid var(--line)}.historyExName{font-weight:650}.historyExWeight{color:var(--blue2)}
+.historyRating,.historyNote,.small{color:var(--muted)}.small{font-size:12px}.historyNote{font-size:12px}
+.delBtn{background:#382523;color:#F1AAA0;border:1px solid #79534F;font-size:12px;font-weight:600;min-height:36px}
+.doneBar{background:var(--line);height:4px}.doneBarFill{background:#79B58A}
+.sessionDetails summary{color:var(--blue2);font-size:12px;font-weight:600}
+.volTag{background:#202A24;border:1px solid #3D5446;color:var(--blue2)}
+.setHistoryChip{background:#242A2D;color:var(--muted);border-color:#424B52}.setHistoryChip.setHistoryDone{background:#203E2A;color:#C1E3CE;border-color:#4A7958}
+.doneBadge{background:var(--green);color:var(--text)}
+.backupBtn{min-height:44px;font-size:12px;border-radius:10px;font-weight:650}.exportBtn{background:var(--blue);color:var(--bg)}.importBtn{background:#242A2D;border:1px solid #424B52;color:var(--text)}
+.sheet{background:var(--card);border-color:var(--line);box-shadow:0 -10px 50px rgba(0,0,0,.3)}.sheetOverlay{background:rgba(0,0,0,.7)}
+.sheetOption{background:#242A2D;color:var(--text);border:1px solid #424B52;font-size:14px;min-height:48px}.sheetOption:active{background:#263E2E}
+.sheetClose{color:var(--text);border-color:#424B52;min-height:44px}
+@media(max-width:560px){.wrap{padding:16px 14px 80px}.seg button{flex:1 1 28%;padding:10px 5px;font-size:12px}.exercise{padding:15px}.walkingGrid{grid-template-columns:1fr}.exTitleRow h3{font-size:17px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
