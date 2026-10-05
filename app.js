@@ -1,478 +1,90 @@
-// Iron Log - Workout Tracker App
-// Main application logic
-
-// Default exercises database
-const defaultExercises = [
-  { id: 'bench-press', name: 'Bench Press', category: 'chest' },
-  { id: 'incline-bench', name: 'Incline Bench Press', category: 'chest' },
-  { id: 'dumbbell-fly', name: 'Dumbbell Fly', category: 'chest' },
-  { id: 'pull-up', name: 'Pull Up', category: 'back' },
-  { id: 'barbell-row', name: 'Barbell Row', category: 'back' },
-  { id: 'lat-pulldown', name: 'Lat Pulldown', category: 'back' },
-  { id: 'deadlift', name: 'Deadlift', category: 'back' },
-  { id: 'overhead-press', name: 'Overhead Press', category: 'shoulders' },
-  { id: 'lateral-raise', name: 'Lateral Raise', category: 'shoulders' },
-  { id: 'face-pull', name: 'Face Pull', category: 'shoulders' },
-  { id: 'bicep-curl', name: 'Bicep Curl', category: 'arms' },
-  { id: 'tricep-extension', name: 'Tricep Extension', category: 'arms' },
-  { id: 'hammer-curl', name: 'Hammer Curl', category: 'arms' },
-  { id: 'squat', name: 'Squat', category: 'legs' },
-  { id: 'leg-press', name: 'Leg Press', category: 'legs' },
-  { id: 'leg-curl', name: 'Leg Curl', category: 'legs' },
-  { id: 'leg-extension', name: 'Leg Extension', category: 'legs' },
-  { id: 'calf-raise', name: 'Calf Raise', category: 'legs' },
-  { id: 'plank', name: 'Plank', category: 'core' },
-  { id: 'crunch', name: 'Crunch', category: 'core' },
-  { id: 'russian-twist', name: 'Russian Twist', category: 'core' },
-  { id: 'treadmill', name: 'Treadmill', category: 'cardio' },
-  { id: 'bike', name: 'Stationary Bike', category: 'cardio' },
-  { id: 'rowing-machine', name: 'Rowing Machine', category: 'cardio' }
-];
-
-// App state
-let exercises = [];
-let workoutHistory = [];
-let activeWorkout = null;
-
-// Initialize app
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('Iron Log initialized');
-  loadData();
-  renderExerciseList();
-  setupEventListeners();
-  updateDate();
-});
-
-// Load data from localStorage
-function loadData() {
-  try {
-    const savedExercises = localStorage.getItem('ironlog_exercises');
-    const savedHistory = localStorage.getItem('ironlog_history');
-    
-    if (savedExercises) {
-      exercises = JSON.parse(savedExercises);
-    } else {
-      exercises = [...defaultExercises];
-      saveData();
-    }
-    
-    if (savedHistory) {
-      workoutHistory = JSON.parse(savedHistory);
-    }
-  } catch (error) {
-    console.error('Error loading data:', error);
-    exercises = [...defaultExercises];
-  }
-}
-
-// Save data to localStorage
-function saveData() {
-  try {
-    localStorage.setItem('ironlog_exercises', JSON.stringify(exercises));
-    localStorage.setItem('ironlog_history', JSON.stringify(workoutHistory));
-  } catch (error) {
-    console.error('Error saving data:', error);
-  }
-}
-
-// Update current date display
-function updateDate() {
-  const dateElement = document.getElementById('current-date');
-  if (dateElement) {
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    dateElement.textContent = new Date().toLocaleDateString('en-US', options);
-  }
-}
-
-// Render exercise list
-function renderExerciseList() {
-  const exerciseList = document.getElementById('exercise-list');
-  if (!exerciseList) {
-    console.error('Exercise list element not found');
-    return;
-  }
-  
-  if (exercises.length === 0) {
-    exerciseList.innerHTML = '<p class="empty-message">No exercises yet. Add some in Settings!</p>';
-    return;
-  }
-  
-  // Group by category
-  const categories = {};
-  exercises.forEach(exercise => {
-    if (!categories[exercise.category]) {
-      categories[exercise.category] = [];
-    }
-    categories[exercise.category].push(exercise);
-  });
-  
-  let html = '';
-  const categoryNames = {
-    chest: 'Chest',
-    back: 'Back',
-    shoulders: 'Shoulders',
-    arms: 'Arms',
-    legs: 'Legs',
-    core: 'Core',
-    cardio: 'Cardio'
-  };
-  
-  Object.keys(categories).forEach(category => {
-    html += `<div class="category-section">
-      <h3 class="category-title">${categoryNames[category] || category}</h3>
-      <div class="exercise-grid">`;
-    
-    categories[category].forEach(exercise => {
-      html += `<div class="exercise-card" data-exercise-id="${exercise.id}">
-        <div class="exercise-name">${exercise.name}</div>
-        <button class="btn btn-small add-to-workout" data-exercise-id="${exercise.id}">+ Add</button>
-      </div>`;
-    });
-    
-    html += '</div></div>';
-  });
-  
-  exerciseList.innerHTML = html;
-}
-
-// Setup event listeners
-function setupEventListeners() {
-  // Navigation buttons
-  document.querySelectorAll('.nav-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const view = e.target.dataset.view;
-      switchView(view);
-    });
-  });
-  
-  // Start workout button
-  const startBtn = document.getElementById('start-workout-btn');
-  if (startBtn) {
-    startBtn.addEventListener('click', startWorkout);
-  }
-  
-  // Finish workout button
-  const finishBtn = document.getElementById('finish-workout-btn');
-  if (finishBtn) {
-    finishBtn.addEventListener('click', finishWorkout);
-  }
-  
-  // Add exercise button
-  const addExerciseBtn = document.getElementById('add-exercise-btn');
-  if (addExerciseBtn) {
-    addExerciseBtn.addEventListener('click', () => {
-      document.getElementById('add-exercise-modal').style.display = 'flex';
-    });
-  }
-  
-  // Add exercise form
-  const addExerciseForm = document.getElementById('add-exercise-form');
-  if (addExerciseForm) {
-    addExerciseForm.addEventListener('submit', handleAddExercise);
-  }
-  
-  // Export data button
-  const exportBtn = document.getElementById('export-data-btn');
-  if (exportBtn) {
-    exportBtn.addEventListener('click', exportData);
-  }
-  
-  // Import data button
-  const importBtn = document.getElementById('import-data-btn');
-  if (importBtn) {
-    importBtn.addEventListener('click', importData);
-  }
-  
-  // Clear data button
-  const clearBtn = document.getElementById('clear-data-btn');
-  if (clearBtn) {
-    clearBtn.addEventListener('click', clearData);
-  }
-  
-  // Close modal when clicking outside
-  window.addEventListener('click', (e) => {
-    const modal = document.getElementById('add-exercise-modal');
-    if (e.target === modal) {
-      modal.style.display = 'none';
-    }
-  });
-  
-  // Delegate click events for exercise cards
-  document.getElementById('exercise-list').addEventListener('click', (e) => {
-    if (e.target.classList.contains('add-to-workout')) {
-      const exerciseId = e.target.dataset.exerciseId;
-      addToWorkout(exerciseId);
-    } else if (e.target.closest('.exercise-card')) {
-      const card = e.target.closest('.exercise-card');
-      const exerciseId = card.dataset.exerciseId;
-      addToWorkout(exerciseId);
-    }
-  });
-}
-
-// Switch view
-function switchView(viewName) {
-  // Update nav buttons
-  document.querySelectorAll('.nav-btn').forEach(btn => {
-    btn.classList.remove('active');
-    if (btn.dataset.view === viewName) {
-      btn.classList.add('active');
-    }
-  });
-  
-  // Update views
-  document.querySelectorAll('.view').forEach(view => {
-    view.classList.remove('active');
-  });
-  
-  const targetView = document.getElementById(`${viewName}-view`);
-  if (targetView) {
-    targetView.classList.add('active');
-  }
-  
-  // Render history if switching to history view
-  if (viewName === 'history') {
-    renderHistory();
-  }
-}
-
-// Start workout
-function startWorkout() {
-  activeWorkout = {
-    startTime: new Date().toISOString(),
-    exercises: []
-  };
-  
-  document.getElementById('active-workout').style.display = 'block';
-  document.getElementById('start-workout-btn').style.display = 'none';
-  renderActiveWorkout();
-}
-
-// Add exercise to active workout
-function addToWorkout(exerciseId) {
-  if (!activeWorkout) {
-    startWorkout();
-  }
-  
-  const exercise = exercises.find(e => e.id === exerciseId);
-  if (exercise) {
-    activeWorkout.exercises.push({
-      exerciseId: exercise.id,
-      exerciseName: exercise.name,
-      sets: []
-    });
-    renderActiveWorkout();
-  }
-}
-
-// Render active workout
-function renderActiveWorkout() {
-  const container = document.getElementById('active-exercises');
-  if (!container) return;
-  
-  if (activeWorkout.exercises.length === 0) {
-    container.innerHTML = '<p class="empty-message">No exercises added yet. Click "+ Add" on any exercise.</p>';
-    return;
-  }
-  
-  let html = '';
-  activeWorkout.exercises.forEach((exercise, index) => {
-    html += `<div class="active-exercise">
-      <h4>${exercise.exerciseName}</h4>
-      <div class="sets-container">`;
-    
-    exercise.sets.forEach((set, setIndex) => {
-      html += `<div class="set-row">
-        <span>Set ${setIndex + 1}:</span>
-        <input type="number" value="${set.weight || ''}" placeholder="kg" class="set-input" data-exercise="${index}" data-set="${setIndex}" data-field="weight">
-        <span>×</span>
-        <input type="number" value="${set.reps || ''}" placeholder="reps" class="set-input" data-exercise="${index}" data-set="${setIndex}" data-field="reps">
-      </div>`;
-    });
-    
-    html += `<button class="btn btn-small add-set" data-exercise="${index}">+ Add Set</button>`;
-    html += '</div></div>';
-  });
-  
-  container.innerHTML = html;
-  
-  // Add event listeners for set inputs
-  container.querySelectorAll('.set-input').forEach(input => {
-    input.addEventListener('change', (e) => {
-      const exerciseIndex = parseInt(e.target.dataset.exercise);
-      const setIndex = parseInt(e.target.dataset.set);
-      const field = e.target.dataset.field;
-      const value = parseFloat(e.target.value) || 0;
-      
-      if (field === 'weight') {
-        activeWorkout.exercises[exerciseIndex].sets[setIndex].weight = value;
-      } else if (field === 'reps') {
-        activeWorkout.exercises[exerciseIndex].sets[setIndex].reps = value;
-      }
-    });
-  });
-  
-  // Add event listeners for add set buttons
-  container.querySelectorAll('.add-set').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const exerciseIndex = parseInt(e.target.dataset.exercise);
-      activeWorkout.exercises[exerciseIndex].sets.push({ weight: 0, reps: 0 });
-      renderActiveWorkout();
-    });
-  });
-}
-
-// Finish workout
-function finishWorkout() {
-  if (!activeWorkout) return;
-  
-  activeWorkout.endTime = new Date().toISOString();
-  workoutHistory.unshift(activeWorkout);
-  saveData();
-  
-  activeWorkout = null;
-  document.getElementById('active-workout').style.display = 'none';
-  document.getElementById('start-workout-btn').style.display = 'block';
-  
-  alert('Workout saved!');
-  renderHistory();
-}
-
-// Render history
-function renderHistory() {
-  const container = document.getElementById('history-list');
-  if (!container) return;
-  
-  if (workoutHistory.length === 0) {
-    container.innerHTML = '<p class="empty-message">No workouts yet. Start your first workout!</p>';
-    return;
-  }
-  
-  let html = '';
-  workoutHistory.forEach((workout, index) => {
-    const startDate = new Date(workout.startTime);
-    const endDate = workout.endTime ? new Date(workout.endTime) : new Date();
-    const duration = Math.round((endDate - startDate) / 60000);
-    
-    html += `<div class="history-item">
-      <div class="history-date">${startDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at ${startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
-      <div class="history-duration">Duration: ${duration} min</div>
-      <div class="history-exercises">${workout.exercises.length} exercises</div>
-      <button class="btn btn-small view-workout" data-index="${index}">View Details</button>
-    </div>`;
-  });
-  
-  container.innerHTML = html;
-  
-  // Add event listeners
-  container.querySelectorAll('.view-workout').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const index = parseInt(e.target.dataset.index);
-      viewWorkoutDetails(index);
-    });
-  });
-}
-
-// View workout details
-function viewWorkoutDetails(index) {
-  const workout = workoutHistory[index];
-  if (!workout) return;
-  
-  let details = `Workout from ${new Date(workout.startTime).toLocaleString()}\n\n`;
-  workout.exercises.forEach(ex => {
-    details += `${ex.exerciseName}:\n`;
-    ex.sets.forEach((set, i) => {
-      details += `  Set ${i + 1}: ${set.weight}kg × ${set.reps} reps\n`;
-    });
-    details += '\n';
-  });
-  
-  alert(details);
-}
-
-// Handle add exercise form
-function handleAddExercise(e) {
-  e.preventDefault();
-  
-  const nameInput = document.getElementById('exercise-name');
-  const categoryInput = document.getElementById('exercise-category');
-  
-  const newExercise = {
-    id: nameInput.value.toLowerCase().replace(/\s+/g, '-'),
-    name: nameInput.value,
-    category: categoryInput.value
-  };
-  
-  exercises.push(newExercise);
-  saveData();
-  renderExerciseList();
-  
-  // Close modal
-  document.getElementById('add-exercise-modal').style.display = 'none';
-  nameInput.value = '';
-  
-  alert('Exercise added!');
-}
-
-// Close modal function (global)
-window.closeModal = function() {
-  document.getElementById('add-exercise-modal').style.display = 'none';
+/* Iron Log repair: original May layout and logging, with additive workout features. */
+const QUOTES = ["Show up. Lift. Repeat. 💪", "Progressive overload is the game. 🔥", "Every rep counts. Every session matters. ⚡", "Consistency beats intensity. Stay the course. 🏆", "You lift, you grow. Simple as that. 💥"];
+const PLAN = {
+ A:[["Chest Press","4x8-12","32kg"],["Lat Pulldown","4x8-12","15kg"],["Seated Row","3x10-12","20kg"],["Shoulder Press","3x10","12kg"],["Face Pulls","3x15","10kg"],["Triceps Pressdown","3x12","15kg"],["Biceps Curl","3x12","10kg"],["Incline Walk","20min","—"]],
+ B:[["Leg Press","4x8-12","20kg"],["Romanian Deadlift","3x8-10","20kg"],["Leg Curl","3x10-12","18kg"],["Leg Extension","3x12","18kg"],["Calf Raises","4x15","20kg"],["Incline Walk","15min","—"]],
+ C:[["Incline Chest Press","4x8-10","28kg"],["One-Arm Row","4x8-12","20kg"],["Rear Delt Fly","3x15","6kg"],["Face Pulls","3x15","10kg"],["Triceps Overhead","3x12","10kg"],["Hammer Curl","3x12","10kg"],["Incline Walk","20min","—"]],
+ D:[["Hack Squat","4x8-10","20kg"],["Hip Thrust","4x10-12","20kg"],["Adductor Machine","3x15-20","32kg"],["Abductor Machine","3x15-20","32kg"],["Leg Extension","2x12","18kg"],["Dead Bug","3x10","—"],["Incline Walk","15min","—"]]
 };
-
-// Export data
-function exportData() {
-  const data = {
-    exercises: exercises,
-    history: workoutHistory,
-    exportDate: new Date().toISOString()
-  };
-  
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `ironlog-backup-${new Date().toISOString().split('T')[0]}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+const AMRAP = [["Curls",5],["Pullovers",5],["Crush Presses",5],["Goblet Squats",5],["Rows",10],["Reverse Lunges",10]];
+const DAY_NAMES = {A:"Upper A",B:"Lower A",C:"Upper B",D:"Lower B",E:"AMRAP"};
+const FORM_TIPS = {"Chest Press":"Elbows at 45°, full range, slow eccentric.","Lat Pulldown":"Pull to upper chest, squeeze lats.","Seated Row":"Pinch shoulder blades at end.","Shoulder Press":"Core tight, no back arch.","Face Pulls":"Pull to nose, elbows high.","Triceps Pressdown":"Elbows pinned, full extension.","Biceps Curl":"No swing, slow on way down.","Incline Walk":"7–8% incline, 5.5–6 km/h. Log your actual settings.","Leg Press":"Drive through heels, full depth.","Romanian Deadlift":"Hinge hips, neutral spine.","Leg Curl":"Control the return every rep.","Leg Extension":"Slow up and down, no slamming.","Calf Raises":"Full stretch at bottom, pause at top.","Incline Chest Press":"30–45° incline, full stretch.","One-Arm Row":"Pull elbow to hip, no rotation.","Rear Delt Fly":"Squeeze hard at the top.","Triceps Overhead":"Keep elbows close.","Hammer Curl":"Neutral grip, smooth reps.","Hack Squat":"Depth below parallel, knees track toes.","Hip Thrust":"Squeeze glutes at top lockout.","Adductor Machine":"Control the inward squeeze and return.","Abductor Machine":"Lean forward, squeeze wide.","Dead Bug":"Lower back pressed flat to floor."};
+const SWAPS = {"Chest Press":["Incline Press","Machine Press"],"Lat Pulldown":["Assisted Pull-Up","Close-Grip Pulldown"],"Seated Row":["Cable Row","DB Row"],"Shoulder Press":["Machine Shoulder Press","DB Shoulder Press"],"Face Pulls":["Reverse Fly","Band Pull-Apart"],"Triceps Pressdown":["Overhead Tricep","Skull Crushers"],"Biceps Curl":["Hammer Curl","Incline DB Curl"],"Incline Walk":["Flat Walk","Bike"],"Leg Press":["Smith Squat","Hack Squat"],"Romanian Deadlift":["Dumbbell RDL","Stiff Leg Deadlift"],"Leg Curl":["Seated Leg Curl","Lying Leg Curl"],"Leg Extension":["Single-Leg Extension","Spanish Squat"],"Calf Raises":["Seated Calf Raise","Leg Press Calf Raise"],"Incline Chest Press":["Flat DB Press","Cable Fly"],"One-Arm Row":["Seated Row","DB Row"],"Rear Delt Fly":["Reverse Pec Deck","Band Pull-Apart"],"Triceps Overhead":["Cable Pressdown","Skull Crushers"],"Hammer Curl":["Cable Curl","Reverse Curl"],"Hack Squat":["Smith Machine Squat","Goblet Squat"],"Hip Thrust":["Glute Bridge","Cable Kickback"],"Adductor Machine":["Cable Adduction","Side-Lying Adduction"],"Abductor Machine":["Cable Abduction","Banded Abduction"],"Dead Bug":["Bird Dog","Heel Taps"],"Curls":["Hammer Curl","Concentration Curl"],"Pullovers":["Dumbbell Pullover","Dead Bug"],"Crush Presses":["Floor Press","Push-Up"],"Goblet Squats":["Bodyweight Squat","Leg Press"],"Rows":["Band Row","DB Row"],"Reverse Lunges":["Split Squat","Step-Back Lunge"],"Jump Rope":["March in Place","Bike"]};
+const RATINGS = [{key:"easy",emoji:"😅",label:"Too easy",delta:2.5},{key:"good",emoji:"💪",label:"Just right",delta:0},{key:"hard",emoji:"😤",label:"Too hard",delta:-2.5}];
+const STORAGE = "iron_log_v3", DRAFT_KEY = "iron_log_draft";
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const arg = s => esc(JSON.stringify(s));
+const obj = x => x && typeof x === "object" && !Array.isArray(x);
+let storageIssue = false;
+const unreadableKeys = new Set();
+function readStore(key) { try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch(e) { storageIssue = true; unreadableKeys.add(key); console.warn("Unreadable storage left untouched:",key,e); return null; } }
+function writeStore(key,value) { if(unreadableKeys.has(key)){showStorageWarning();return false;} try { localStorage.setItem(key,JSON.stringify(value)); return true; } catch(e) { storageIssue = true; console.warn(e); showStorageWarning(); return false; } }
+function uniqueMerge(a,b) { const seen = new Set(); return [...a,...b].filter(x => { const key = x.id != null ? "id:"+x.id : JSON.stringify(x); if(seen.has(key)) return false; seen.add(key); return true; }); }
+const oldData = readStore(STORAGE), newerData = readStore("iron_log_v4");
+let data = obj(oldData) ? oldData : (obj(newerData) ? newerData : {});
+data = {...data,history:uniqueMerge(Array.isArray(oldData?.history)?oldData.history:[],oldData?.repairMigrationV4?[]:(Array.isArray(newerData?.history)?newerData.history:[])),bodyweight:uniqueMerge(Array.isArray(oldData?.bodyweight)?oldData.bodyweight:[],oldData?.repairMigrationV4?[]:(Array.isArray(newerData?.bodyweight)?newerData.bodyweight:[]))};
+const oldDraft = readStore(DRAFT_KEY), newerDraft = readStore("iron_log_draft_v2");
+let draft = obj(oldDraft) ? oldDraft : (obj(newerDraft) ? newerDraft : {});
+let currentDay = DAY_NAMES[draft.day] ? draft.day : "A";
+if(!obj(draft.days)) draft.days = {};
+if(!obj(draft.days[currentDay])) draft.days[currentDay] = obj(draft.exercises) ? draft.exercises : {};
+if(!obj(draft.swaps)) draft.swaps = {};
+if(!obj(draft.amrap)) draft.amrap = {minutes:12,rope:20,rounds:"",extra:"",effort:"",note:"",swaps:{},timer:{running:false,remaining:720,endAt:null}};
+if(!obj(draft.amrap.swaps)) draft.amrap.swaps = {};
+if(!obj(draft.amrap.timer)) draft.amrap.timer = {running:false,remaining:720,endAt:null};
+let chart, bwChart, restInterval, amrapInterval;
+function save() { return writeStore(STORAGE,{...data,repairMigrationV4:true}); }
+function saveDraft() { draft.day = currentDay; draft.exercises = dayDraft(); return writeStore(DRAFT_KEY,draft); }
+function dayDraft() { if(!obj(draft.days[currentDay])) draft.days[currentDay] = {}; return draft.days[currentDay]; }
+function showStorageWarning() { const el = $("storageWarning"); if(el) {el.hidden=false;el.textContent="Storage could not be read or saved. Existing stored values have not been cleared. Export a backup; do not clear site data.";} }
+function entries(session) { return Array.isArray(session?.exercises) ? session.exercises.filter(obj) : []; }
+function getLastEntry(name) { for(let i=data.history.length-1;i>=0;i--) { const ex=entries(data.history[i]).find(x=>x.name===name); if(ex) return ex; } return null; }
+function weights(ex) { return Array.isArray(ex?.sets) ? ex.sets.filter(obj).map(s=>parseFloat(s.kg)).filter(Number.isFinite) : (Number.isFinite(parseFloat(ex?.weight))?[parseFloat(ex.weight)]:[]); }
+function getPersonalBest(name) { return Math.max(0,...data.history.flatMap(s=>entries(s).filter(e=>e.name===name).flatMap(weights))); }
+function getSuggestion(name,fallback) { const last=getLastEntry(name); if(!last) return {text:`First time — try ${fallback}`,suggestedKg:null,lastNote:null}; const vals=weights(last),kg=vals.length?vals[vals.length-1]:null,r=RATINGS.find(x=>x.key===last.rating),delta=r?.delta||0; return {text:kg===null?"No weight logged last time":`Last: ${kg} kg (${r?r.emoji+" "+r.label:"no rating"}) ${delta>0?"↑":delta<0?"↓":"→"} Try ${Math.max(0,kg+delta)} kg`,suggestedKg:kg===null?null:Math.max(0,kg+delta),lastNote:typeof last.note==="string"?last.note.trim():null}; }
+function workoutRows() { return PLAN[currentDay].map((ex,i)=>[draft.swaps[currentDay]?.[i]||ex[0],ex[1],ex[2],ex[0]]); }
+function seedExercise(i,name) { const ex=workoutRows()[i],map=dayDraft(); if(!obj(map[name])) map[name]={}; const d=map[name]; if(ex[2]!=="—" && !Array.isArray(d.sets)) d.sets=[]; if(ex[2]!=="—" && !d.sets.length) d.sets=Array.from({length:parseInt(ex[1])||3},()=>({kg:getSuggestion(name,ex[2]).suggestedKg??"",reps:"",done:false})); if(Array.isArray(d.sets)) d.sets=Array.from(d.sets,s=>obj(s)?s:{kg:"",reps:"",done:false}); return d; }
+function buildSetRow(i,j,name,kg,reps,done) { return `<div class="setRow${done?" setRowDone":""}" id="setRow_${i}_${j}"><span class="setNumCol">${j+1}</span><input aria-label="Set ${j+1} weight in kg" class="setKgInput setKgCol" type="number" min="0" step="any" inputmode="decimal" placeholder="kg" value="${esc(kg)}" oninput="updateSetDraft(${i},${j},${arg(name)})" id="setKg_${i}_${j}"><input aria-label="Set ${j+1} reps" class="setRepsInput setRepsCol" type="number" min="0" step="1" inputmode="numeric" placeholder="reps" value="${esc(reps)}" oninput="updateSetDraft(${i},${j},${arg(name)})" id="setReps_${i}_${j}"><button type="button" aria-label="Mark set ${j+1} complete" class="setCheckBtn setDoneCol${done?" setCheckDone":""}" id="setCheck_${i}_${j}" onclick="toggleSetDone(${i},${j},${arg(name)})">${done?"✓":""}</button></div>`; }
+function renderWorkout() {
+ document.querySelectorAll(".seg button").forEach(b=>b.classList.toggle("active",b.id===`day${currentDay}Btn`));
+ const wrap=$("workout"); if(currentDay==="E") {renderAmrap();return;}
+ const rows=workoutRows().map((ex,i)=> {const [name,setsStr,target,base]=ex,d=seedExercise(i,name),isBody=target==="—",walking=base==="Incline Walk",s=getSuggestion(name,target),pb=getPersonalBest(name); return `<div class="exercise${d.done?" exDone":""}" id="exCard_${i}"><div class="exHeader"><div class="exTitleRow"><h3>${esc(name)}</h3><button type="button" class="swapTrigger" onclick="openSwap(${arg(base)},${i})">⇄ Swap</button></div><label class="doneLabel"><input type="checkbox" id="done_${i}" ${d.done?"checked":""} onchange="setDone(${i},${arg(name)})"><span class="doneTick"></span>Done</label></div><div class="meta">${esc(setsStr)}${isBody?"":" · target: "+esc(target)}</div>${FORM_TIPS[name]?`<div class="formTip">💡 ${esc(FORM_TIPS[name])}</div>`:""}${!isBody?`<div class="suggestion">${esc(s.text)}</div>`:""}<div id="pb_${i}"${pb?" class=\"pbBadge\"":""}>${pb?`🏆 PB: ${pb} kg`:""}</div>${s.lastNote?`<div class="noteReminder">📌 Last note: ${esc(s.lastNote)}</div>`:""}${walking?`<div class="walkingGrid"><label>Minutes<input id="walkMin_${i}" type="number" min="0" step="any" value="${esc(d.minutes)}" oninput="walkDraft(${i},${arg(name)})"></label><label>Speed · km/h<input id="walkSpeed_${i}" type="number" min="0" step="any" value="${esc(d.speed)}" oninput="walkDraft(${i},${arg(name)})"></label><label>Incline · %<input id="walkIncline_${i}" type="number" min="0" step="any" value="${esc(d.incline)}" oninput="walkDraft(${i},${arg(name)})"></label></div>`:!isBody?`<div class="setTableWrap" id="setTable_${i}"><div class="setTableHead"><span>#</span><span>kg</span><span>reps</span><span>✓</span></div>${d.sets.map((s,j)=>buildSetRow(i,j,name,s.kg,s.reps,s.done)).join("")}</div><button type="button" class="addSetBtn" onclick="addSet(${i},${arg(name)})">+ Add set</button><div class="volumeRow" id="vol_${i}"></div>`:""}${!isBody?`<div class="ratingRow"><span class="ratingLabel">How did it feel?</span><div class="ratingBtns">${RATINGS.map(r=>`<button type="button" class="ratingBtn${d.rating===r.key?" ratingActive":""}" id="rating_${i}_${r.key}" onclick="setRating(${i},${arg(r.key)},${arg(name)})" title="${esc(r.label)}">${r.emoji}</button>`).join("")}</div></div>`:""}<textarea id="note_${i}" placeholder="Notes" oninput="saveNoteDraft(${i},${arg(name)})">${esc(d.note)}</textarea></div>`;}).join("");
+ wrap.innerHTML=`<div class="card">${rows}<div class="draftBanner">💾 Draft auto-saved — your sets are safe</div><button type="button" class="actionBtn" onclick="logSession()">Log ${DAY_NAMES[currentDay]} Session 🔥</button><button type="button" class="clearDraftBtn" onclick="confirmClearDraft()">🗑 Clear this workout's draft</button><div id="logStatus" class="logStatus"></div></div>`;
+ workoutRows().forEach((ex,i)=>{if(ex[2]!=="—")updateVolumeDisplay(i,ex[0]);}); saveDraft();
 }
-
-// Import data
-function importData() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json';
-  
-  input.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target.result);
-        if (data.exercises) exercises = data.exercises;
-        if (data.history) workoutHistory = data.history;
-        saveData();
-        renderExerciseList();
-        alert('Data imported successfully!');
-      } catch (error) {
-        alert('Error importing data: ' + error.message);
-      }
-    };
-    reader.readAsText(file);
-  });
-  
-  input.click();
-}
-
-// Clear all data
-function clearData() {
-  if (confirm('Are you sure you want to clear all data? This cannot be undone.')) {
-    localStorage.removeItem('ironlog_exercises');
-    localStorage.removeItem('ironlog_history');
-    exercises = [...defaultExercises];
-    workoutHistory = [];
-    renderExerciseList();
-    alert('All data cleared. Default exercises restored.');
-  }
-}
+function collectSetsFromDOM(i,name) { const d=seedExercise(i,name); (d.sets||[]).forEach((s,j)=>{if($("setKg_"+i+"_"+j)) s.kg=$("setKg_"+i+"_"+j).value; if($("setReps_"+i+"_"+j)) s.reps=$("setReps_"+i+"_"+j).value;}); }
+function collectAllFromDOM() { if($("bwInput")) draft.bw=$("bwInput").value; if(currentDay==="E") collectAmrap(); else workoutRows().forEach((ex,i)=>{const d=seedExercise(i,ex[0]);collectSetsFromDOM(i,ex[0]);if($("note_"+i)) d.note=$("note_"+i).value;if($("done_"+i)) d.done=$("done_"+i).checked;if(ex[3]==="Incline Walk")walkDraft(i,ex[0],false);}); saveDraft(); }
+function updateSetDraft(i,j,name) { collectSetsFromDOM(i,name);saveDraft();updateVolumeDisplay(i,name);const max=Math.max(0,...weights(dayDraft()[name])),pb=getPersonalBest(name),el=$("pb_"+i);if(el){el.className=max>pb?"pbBadge pbNew":pb?"pbBadge":"";el.textContent=max>pb?`🏆 New PB incoming! ${max} kg`:pb?`🏆 PB: ${pb} kg`:"";} }
+function addSet(i,name) { collectAllFromDOM();const sets=seedExercise(i,name).sets;sets.push({kg:sets.at(-1)?.kg??"",reps:"",done:false});saveDraft();renderWorkout(); }
+function toggleSetDone(i,j,name) { collectSetsFromDOM(i,name);const s=dayDraft()[name].sets[j];s.done=!s.done;saveDraft();$("setCheck_"+i+"_"+j)?.classList.toggle("setCheckDone",s.done);if($("setCheck_"+i+"_"+j))$("setCheck_"+i+"_"+j).textContent=s.done?"✓":"";$("setRow_"+i+"_"+j)?.classList.toggle("setRowDone",s.done);if(s.done)startTimer(90); }
+function updateVolumeDisplay(i,name) { const el=$("vol_"+i);if(el){const v=(dayDraft()[name]?.sets||[]).reduce((a,s)=>a+(parseFloat(s.kg)||0)*(parseFloat(s.reps)||0),0);el.textContent=v?`Total volume: ${v.toFixed(0)} kg`:"";} }
+function setDone(i,name) { const d=seedExercise(i,name);d.done=$("done_"+i).checked;collectSetsFromDOM(i,name);saveDraft();$("exCard_"+i).classList.toggle("exDone",d.done);if(d.done)startTimer(90); }
+function setRating(i,key,name) { seedExercise(i,name).rating=key;saveDraft();RATINGS.forEach(r=>$("rating_"+i+"_"+r.key)?.classList.toggle("ratingActive",r.key===key)); }
+function saveNoteDraft(i,name) { seedExercise(i,name).note=$("note_"+i).value;saveDraft(); }
+function walkDraft(i,name,persist=true) { const d=seedExercise(i,name);d.minutes=$("walkMin_"+i)?.value??d.minutes;d.speed=$("walkSpeed_"+i)?.value??d.speed;d.incline=$("walkIncline_"+i)?.value??d.incline;if(persist)saveDraft(); }
+function logSession() { collectAllFromDOM();const exercises=workoutRows().map((ex,i)=>{const d=seedExercise(i,ex[0]),sets=d.sets||[];return {...d,name:ex[0],baseName:ex[3],sets:JSON.parse(JSON.stringify(sets)),weight:sets.length?String(Math.max(0,...weights(d))):"",volume:sets.reduce((a,s)=>a+(+s.kg||0)*(+s.reps||0),0).toFixed(0)};});const session={id:Date.now(),day:currentDay,date:new Date().toLocaleString(),exercises};const bw=parseFloat(draft.bw);data.history.push(session);if(Number.isFinite(bw)&&bw>0)data.bodyweight.push({date:new Date().toLocaleDateString(),weight:bw});if(!save()){data.history.pop();if(Number.isFinite(bw)&&bw>0)data.bodyweight.pop();alert("Could not save. Your draft has been kept. Export a backup.");return;}draft.days[currentDay]={};delete draft.swaps[currentDay];draft.bw="";$("bwInput").value="";saveDraft();renderWorkout();renderHistory();renderChart();renderBWChart();$("logStatus").textContent="Session logged 🔥 Keep pushing!"; }
+function confirmClearDraft() { if(confirm("Clear only this workout's draft? Logged history and other workout drafts will be kept.")){if(currentDay==="E"){pauseAmrap();draft.amrap={minutes:12,rope:20,swaps:{},timer:{running:false,remaining:720,endAt:null}};}else{draft.days[currentDay]={};delete draft.swaps[currentDay];}saveDraft();renderWorkout();} }
+function openSwap(base,i,amrap=false) { collectAllFromDOM();$("sheetTitle").textContent=`${base} alternatives`;const choices=[base,...(SWAPS[base]||[])];$("sheetOptions").innerHTML=choices.map(n=>`<button type="button" class="sheetOption" onclick="applySwap(${i},${arg(n)},${amrap})">${esc(n)}${n===base?" (original)":""}</button>`).join("");$("swapSheet").classList.add("open");$("sheetOverlay").classList.add("open"); }
+function applySwap(i,name,amrap=false) { if(amrap)draft.amrap.swaps[i]=name;else{if(!obj(draft.swaps[currentDay]))draft.swaps[currentDay]={};draft.swaps[currentDay][i]=name;}saveDraft();closeSwap();renderWorkout(); }
+function closeSwap() { $("swapSheet").classList.remove("open");$("sheetOverlay").classList.remove("open"); }
+function remaining(t) { return t.running?Math.max(0,Math.ceil((t.endAt-Date.now())/1000)):Math.max(0,Number(t.remaining)||0); }
+function timeText(sec) { return `${String(Math.floor(sec/60)).padStart(2,"0")}:${String(sec%60).padStart(2,"0")}`; }
+function startTimer(seconds) { clearInterval(restInterval);draft.rest={running:true,remaining:seconds,endAt:Date.now()+seconds*1000};saveDraft();updateRest();restInterval=setInterval(updateRest,1000); }
+function updateRest() { if(!draft.rest)return;const sec=remaining(draft.rest);$("timerDisplay").textContent=timeText(sec);$("timerWrap").classList.toggle("timerRunning",draft.rest.running&&sec>0);if(draft.rest.running&&sec===0){draft.rest.running=false;draft.rest.remaining=0;clearInterval(restInterval);saveDraft();if(navigator.vibrate)navigator.vibrate([200,100,200]);} }
+function renderAmrap() { const a=draft.amrap;$("workout").innerHTML=`<div class="card"><h2>Beginner Kettlebell AMRAP</h2><div class="small">12.5 kg kettlebell · quality rounds first</div>${[...AMRAP,["Jump Rope","20–30 seconds"]].map(([base,reps],i)=>`<div class="exercise"><div class="exTitleRow"><h3>${esc(a.swaps[i]||base)}</h3><button type="button" class="swapTrigger" onclick="openSwap(${arg(base)},${i},true)">⇄ Swap</button></div><div class="meta">${esc(reps)}${i<6?" reps":""}${i===4||i===5?" · 5 per side":""}</div></div>`).join("")}<div class="walkingGrid"><label>Duration · minutes<input id="amrapMinutes" type="number" min="0.1" step="any" value="${esc(a.minutes)}" oninput="changeAmrapDuration()"></label><label>Rope seconds per round<input id="amrapRope" type="number" min="0" step="any" value="${esc(a.rope)}" oninput="collectAmrap();saveDraft()"></label></div><div id="amrapTimer" class="amrapTimer">${timeText(remaining(a.timer))}</div><div class="timerBtns"><button type="button" onclick="startAmrap()">Start / Resume</button><button type="button" onclick="pauseAmrap()">Pause</button><button type="button" onclick="resetAmrap()">Reset timer</button></div><div class="walkingGrid"><label>Full rounds<input id="amrapRounds" type="number" min="0" step="1" value="${esc(a.rounds)}" oninput="collectAmrap();saveDraft()"></label><label>Extra reps<input id="amrapExtra" type="number" min="0" step="1" value="${esc(a.extra)}" oninput="collectAmrap();saveDraft()"></label><label>Effort · 1–10<input id="amrapEffort" type="number" min="1" max="10" value="${esc(a.effort)}" oninput="collectAmrap();saveDraft()"></label></div><textarea id="amrapNote" placeholder="AMRAP notes" oninput="collectAmrap();saveDraft()">${esc(a.note)}</textarea><div class="draftBanner">💾 Inputs and timer state are auto-saved</div><button class="actionBtn" onclick="logAmrap()">Log AMRAP 🔥</button><button class="clearDraftBtn" onclick="confirmClearDraft()">Clear AMRAP draft</button><div id="amrapStatus" class="logStatus"></div></div>`;updateAmrap(); }
+function collectAmrap() { const a=draft.amrap;[ ["rope","amrapRope"],["rounds","amrapRounds"],["extra","amrapExtra"],["effort","amrapEffort"],["note","amrapNote"] ].forEach(([k,id])=>{if($(id))a[k]=$(id).value;}); }
+function changeAmrapDuration() { const a=draft.amrap,v=Number($("amrapMinutes").value);if(!Number.isFinite(v)||v<=0)return;if(a.timer.running){$("amrapMinutes").value=a.minutes;return;}a.minutes=v;a.timer.remaining=Math.round(v*60);saveDraft();updateAmrap(); }
+function startAmrap() { const t=draft.amrap.timer;if(t.running)return;if(!(remaining(t)>0))t.remaining=Math.round(Number(draft.amrap.minutes)*60);if(!(t.remaining>0))return;t.running=true;t.endAt=Date.now()+t.remaining*1000;saveDraft();clearInterval(amrapInterval);amrapInterval=setInterval(updateAmrap,1000);updateAmrap(); }
+function pauseAmrap() { const t=draft.amrap.timer;t.remaining=remaining(t);t.running=false;t.endAt=null;clearInterval(amrapInterval);saveDraft();updateAmrap(); }
+function resetAmrap() { pauseAmrap();draft.amrap.timer.remaining=Math.round(Number(draft.amrap.minutes)*60);saveDraft();updateAmrap(); }
+function updateAmrap() { const t=draft.amrap.timer,sec=remaining(t);if($("amrapTimer")){$("amrapTimer").textContent=timeText(sec);$("amrapTimer").classList.toggle("amrapActive",t.running&&sec>0);}if($("amrapMinutes"))$("amrapMinutes").disabled=t.running;if(t.running&&sec===0){t.running=false;t.remaining=0;t.endAt=null;clearInterval(amrapInterval);if($("amrapStatus"))$("amrapStatus").textContent="AMRAP complete 💪";if(navigator.vibrate)navigator.vibrate([200,100,200]);}if(t.running||sec===0)saveDraft(); }
+function logAmrap() { collectAllFromDOM();const a=draft.amrap,rounds=Number(a.rounds)||0,extra=Number(a.extra)||0,effort=a.effort===""||a.effort==null?null:Number(a.effort);if(rounds<0||extra<0||!Number.isInteger(rounds)||!Number.isInteger(extra)||(effort!==null&&(effort<1||effort>10))){alert("Check rounds, extra reps, and effort (1–10).");return;}const exercises=[...AMRAP,["Jump Rope",0]].map(([base,reps],i)=>({name:a.swaps[i]||base,baseName:base,repsPerRound:reps,done:true,note:"AMRAP"}));const result={duration:Math.round(Number(a.minutes)*60),rounds,extra,effort,rope:Number(a.rope)||0,note:a.note||"",timer:JSON.parse(JSON.stringify(a.timer))};data.history.push({id:Date.now(),day:"E",type:"AMRAP",date:new Date().toLocaleString(),amrap:result,exercises});if(!save()){data.history.pop();alert("Could not save. Draft kept; export a backup.");return;}pauseAmrap();a.rounds="";a.extra="";a.effort="";a.note="";resetAmrap();saveDraft();renderWorkout();renderHistory();renderChart();$("amrapStatus").textContent="AMRAP logged 🔥"; }
+function renderHistory() { const h=$("history");if(!data.history.length){h.innerHTML='<div class="historyItem"><div class="small">No sessions logged yet.</div></div>';return;}h.innerHTML=data.history.slice().reverse().map((s,rev)=>{const exs=entries(s),done=exs.filter(e=>e.done).length,total=exs.length,a=s.amrap;return `<div class="historyItem"><div class="historyTop"><div><strong>${esc(DAY_NAMES[s.day]||s.day||"Workout")}</strong><div class="small">${esc(s.date)}</div></div><button class="delBtn" onclick="deleteSession(${data.history.length-1-rev})">Delete</button></div>${s.type==="AMRAP"&&a?`<div class="small">${esc(a.duration/60)} min · ${esc(a.rounds)} rounds + ${esc(a.extra)} reps · rope ${esc(a.rope)}s · effort ${esc(a.effort??"—")}/10</div><div class="historyNote">${esc(a.note)}</div>`:`<div class="doneBar"><div class="doneBarFill" style="width:${total?done/total*100:0}%"></div></div><div class="small">${done}/${total} exercises completed</div>`}<details class="sessionDetails"><summary>View exercises (${total})</summary><div class="exList">${exs.map(ex=>{const r=RATINGS.find(x=>x.key===ex.rating);return `<div class="historyExRow"><span class="historyExName">${ex.done?'<span class="doneBadge">✓</span>':""}${esc(ex.name)}</span>${Array.isArray(ex.sets)&&ex.sets.length?`<div class="setHistoryRow">${ex.sets.filter(obj).map((st,i)=>`<span class="setHistoryChip${st.done?" setHistoryDone":""}">${i+1}: ${esc(st.kg??"?")}kg × ${esc(st.reps??"?")}r</span>`).join("")}</div>`:ex.weight?`<span class="historyExWeight">${esc(ex.weight)} kg</span>`:""}${r?`<span class="historyRating">${r.emoji} ${r.label}</span>`:""}${ex.volume?`<span class="volTag">${esc(ex.volume)} kg vol</span>`:""}${ex.minutes!=null?`<div class="small">${esc(ex.minutes)} min · ${esc(ex.speed??"—")} km/h · ${esc(ex.incline??"—")}% incline</div>`:""}${ex.note?`<div class="historyNote">${esc(ex.note)}</div>`:""}</div>`;}).join("")}</div></details></div>`;}).join(""); }
+function deleteSession(i) { if(!confirm("Delete this session?"))return;const removed=data.history.splice(i,1);if(!save()){data.history.splice(i,0,...removed);return;}renderHistory();renderChart(); }
+function exportBackup() { collectAllFromDOM();const blob=new Blob([JSON.stringify({...data,draft},null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`iron-log-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000); }
+function importBackup() { const input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=e=>{const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=ev=>{try{const parsed=JSON.parse(ev.target.result);if(!Array.isArray(parsed.history)||!parsed.history.every(s=>obj(s)&&Array.isArray(s.exercises))){alert("Invalid backup file.");return;}if(!confirm(`Import ${parsed.history.length} sessions? This replaces the displayed history. Export first to retain a copy.`))return;const previous=data;data={...parsed,history:parsed.history,bodyweight:Array.isArray(parsed.bodyweight)?parsed.bodyweight:[]};delete data.draft;if(!save()){data=previous;return;}renderHistory();renderChart();renderBWChart();renderWorkout();alert("Backup restored 🔥");}catch(e){alert("Could not read file.");}};reader.readAsText(f);};input.click(); }
+function renderChart(forcedName) { const select=$("exerciseSelect"),names=[...new Set(data.history.flatMap(s=>entries(s).map(ex=>ex.name)))];if(!names.length){select.innerHTML='<option value="">No data yet</option>';if(chart){chart.destroy();chart=null;}return;}const name=names.includes(forcedName)?forcedName:names.includes(select.value)?select.value:names[0];select.innerHTML=names.map(n=>`<option value="${esc(n)}"${n===name?" selected":""}>${esc(n)}</option>`).join("");const points=[];data.history.forEach((s,i)=>{const ex=entries(s).find(x=>x.name===name);if(ex){const vals=weights(ex);points.push({label:`S${i+1} (${String(s.date||"").split(",")[0]})`,value:vals.length?Math.max(...vals):null});}});if(chart){chart.destroy();chart=null;}if(typeof Chart!=="function")return;chart=new Chart($("progressChart"),{type:"line",data:{labels:points.map(p=>p.label),datasets:[{label:`${name} (kg)`,data:points.map(p=>p.value),tension:.35,fill:true,borderColor:"#2563eb",backgroundColor:"rgba(37,99,235,.10)",pointBackgroundColor:"#2563eb",pointRadius:5,spanGaps:true}]},options:{responsive:true,plugins:{legend:{display:true}},scales:{y:{beginAtZero:false,title:{display:true,text:"kg"}}}}}); }
+function renderBWChart() { if(bwChart){bwChart.destroy();bwChart=null;}if(!data.bodyweight.length||typeof Chart!=="function")return;bwChart=new Chart($("bwChart"),{type:"line",data:{labels:data.bodyweight.map(p=>p.date),datasets:[{label:"Body weight (kg)",data:data.bodyweight.map(p=>p.weight),tension:.35,fill:true,borderColor:"#0ea5e9",backgroundColor:"rgba(14,165,233,.10)",pointRadius:5}]},options:{responsive:true,scales:{y:{beginAtZero:false,title:{display:true,text:"kg"}}}}}); }
+function init() { $("quote").textContent=QUOTES[Math.floor(Math.random()*QUOTES.length)];$("bwInput").value=draft.bw||"";$("bwInput").addEventListener("input",()=>{draft.bw=$("bwInput").value;saveDraft();});Object.keys(DAY_NAMES).forEach(d=>$("day"+d+"Btn").addEventListener("click",()=>{collectAllFromDOM();currentDay=d;renderWorkout();}));$("exerciseSelect").addEventListener("change",e=>renderChart(e.target.value));renderWorkout();renderHistory();renderChart();renderBWChart();if(draft.rest?.running){updateRest();restInterval=setInterval(updateRest,1000);}if(draft.amrap.timer.running){updateAmrap();amrapInterval=setInterval(updateAmrap,1000);}document.addEventListener("visibilitychange",()=>{collectAllFromDOM();updateRest();updateAmrap();});window.addEventListener("pagehide",collectAllFromDOM);if(storageIssue)showStorageWarning();if("serviceWorker" in navigator){let reloading=false;navigator.serviceWorker.addEventListener("controllerchange",()=>{if(!reloading){reloading=true;collectAllFromDOM();window.location.reload();}});navigator.serviceWorker.register("service-worker.js",{updateViaCache:"none"}).then(r=>r.update()).catch(console.warn);} }
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
