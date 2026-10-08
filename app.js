@@ -65,7 +65,21 @@ function saveNoteDraft(i,name) { seedExercise(i,name).note=$("note_"+i).value;sa
 function walkDraft(i,name,persist=true) { const d=seedExercise(i,name);d.minutes=$("walkMin_"+i)?.value??d.minutes;d.speed=$("walkSpeed_"+i)?.value??d.speed;d.incline=$("walkIncline_"+i)?.value??d.incline;if(persist)saveDraft(); }
 function logSession() { collectAllFromDOM();const exercises=workoutRows().map((ex,i)=>{const d=seedExercise(i,ex[0]),sets=d.sets||[];return {...d,name:ex[0],baseName:ex[3],sets:JSON.parse(JSON.stringify(sets)),weight:sets.length?String(Math.max(0,...weights(d))):"",volume:sets.reduce((a,s)=>a+(+s.kg||0)*(+s.reps||0),0).toFixed(0)};});const session={id:Date.now(),day:currentDay,date:new Date().toLocaleString(),exercises};const bw=parseFloat(draft.bw);data.history.push(session);if(Number.isFinite(bw)&&bw>0)data.bodyweight.push({date:new Date().toLocaleDateString(),weight:bw});if(!save()){data.history.pop();if(Number.isFinite(bw)&&bw>0)data.bodyweight.pop();alert("Could not save. Your draft has been kept. Export a backup.");return;}draft.days[currentDay]={};delete draft.swaps[currentDay];draft.bw="";$("bwInput").value="";saveDraft();renderWorkout();renderHistory();renderChart();renderBWChart();$("logStatus").textContent="Session logged 🔥 Keep pushing!"; }
 function confirmClearDraft() { if(confirm("Clear only this workout's draft? Logged history and other workout drafts will be kept.")){if(currentDay==="E"){pauseAmrap();draft.amrap={minutes:12,rope:20,swaps:{},timer:{running:false,remaining:720,endAt:null}};}else{draft.days[currentDay]={};delete draft.swaps[currentDay];}saveDraft();renderWorkout();} }
-function openSwap(base,i,amrap=false) { collectAllFromDOM();$("sheetTitle").textContent=`${base} alternatives`;const choices=[base,...(SWAPS[base]||[])];$("sheetOptions").innerHTML=choices.map(n=>`<button type="button" class="sheetOption" onclick="applySwap(${i},${arg(n)},${amrap})">${esc(n)}${n===base?" (original)":""}</button>`).join("");$("swapSheet").classList.add("open");$("sheetOverlay").classList.add("open"); }
+function openSwap(base,i,amrap=false) {
+ collectAllFromDOM();
+ $("sheetTitle").textContent=`${base} alternatives`;
+ const selected=amrap?(draft.amrap.swaps[i]||base):(draft.swaps[currentDay]?.[i]||base);
+ const choices=[...new Set([base,...(SWAPS[base]||[]),selected])];
+ $("sheetOptions").innerHTML=choices.map(n=>`<button type="button" class="sheetOption" onclick="applySwap(${i},${arg(n)},${amrap})">${esc(n)}${n===base?" (original)":""}${n===selected?" ✓":""}</button>`).join("")+`<form onsubmit="event.preventDefault();applyCustomSwap(${i},${amrap})" style="margin-top:16px"><label for="customSwapName" style="display:block;margin-bottom:8px">Use your own exercise</label><input id="customSwapName" type="text" maxlength="80" required autocomplete="off" placeholder="e.g. Cable lateral raise" value="${esc(![base,...(SWAPS[base]||[])].includes(selected)?selected:"")}" style="box-sizing:border-box;width:100%;min-height:48px;padding:12px;border:1px solid var(--border,#626C75);border-radius:10px;background:var(--bg,#182025);color:var(--text,#fff);font:inherit" oninput="this.setCustomValidity('')"><button type="submit" class="sheetOption" style="margin-top:10px">+ Use this exercise</button><div class="small" style="margin-top:8px">Replaces this exercise for the current workout. The existing set/rep template stays the same.</div></form>`;
+ $("swapSheet").classList.add("open");$("sheetOverlay").classList.add("open");
+}
+function applyCustomSwap(i,amrap=false) {
+ const input=$("customSwapName");if(!input)return;
+ const name=input.value.trim().replace(/\s+/g," ");
+ const invalid=!name?"Enter an exercise name.":["__proto__","prototype","constructor"].includes(name.toLowerCase())?"Please choose a different exercise name.":name.length>80?"Use 80 characters or fewer.":"";
+ input.setCustomValidity(invalid);if(!input.reportValidity())return;
+ applySwap(i,name,amrap);
+}
 function applySwap(i,name,amrap=false) { if(amrap)draft.amrap.swaps[i]=name;else{if(!obj(draft.swaps[currentDay]))draft.swaps[currentDay]={};draft.swaps[currentDay][i]=name;}saveDraft();closeSwap();renderWorkout(); }
 function closeSwap() { $("swapSheet").classList.remove("open");$("sheetOverlay").classList.remove("open"); }
 function remaining(t) { return t.running?Math.max(0,Math.ceil((t.endAt-Date.now())/1000)):Math.max(0,Number(t.remaining)||0); }
